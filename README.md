@@ -1,28 +1,47 @@
 # Xiaohuhu Work Space
 
-个人智能工作空间 · 脱离第三方平台依赖的长期个人工作平台。
+个人智能工作空间 · 脱离第三方商业平台依赖的长期个人数字工作平台。
 
 ---
 
-## 🌟 项目定位与特性
+## 🌟 项目定位与核心特性
 
 - **纯个人数据主权**：数据存储于本地 `localStorage`，支持全量 JSON 备份、版本化导出与恢复。
-- **分层数据架构**：通过 `modules → database → data-adapter → storage` 完整解耦业务与存储底座，未来可平滑迁移云端（如 Supabase / Firebase）。
+- **☁️ Supabase 多端云同步**：支持轻量邮箱密码认证、军工级 RLS 行级加密隔离与多设备（电脑/手机/平板）双向实时数据同步。
+- **📱 PWA 离线运行与独立 App**：
+  * **电脑端**：一键安装为 Windows / Mac 纯净无边框独立桌面软件。
+  * **手机端**：添加到 iOS / Android 主屏幕，实现原生 App 级全屏手账体验。
+  * **离线秒开**：断网或飞行模式下秒级启动，数据完全可用。
+- **分层数据架构**：通过 `modules → database → data-adapter → storage` 完整解耦业务与存储底座。
 - **统一版本与迁移体系**：中央管理应用版本与数据 Schema，内置链式数据迁移机制（`core/migration.js`）。
 - **全功能日常工作流**：
-  - 📌 **任务管理（Task）**：支持待办/已完成切换、筛选过滤、统计与快捷删除。
+  - 📌 **任务管理（Task）**：顶部「☀️ 今天要处理」置顶聚焦、跨日月时分时间段、定点提醒、红黄绿优先级标签。
   - 📝 **工作日志（Journal）**：支持分类标签（💻开发 / 🧪实验 / 📖思考 / 📌总结 / 💡灵感）、快捷键保存与卡片流。
-  - 📚 **阅读中心（Reading）**：支持文献/书籍记录、阅读状态管理（想读/在读/已读）、读书笔记与筛选。
+  - 📚 **阅读中心（Reading）**：支持文献/书籍记录、阅读状态管理（想读/在读/已读）、读书笔记与评分。
   - 🧪 **科研记录（Research）**：支持实验方案记录、观察总结、多标签管理与详情查看。
-  - ⚙️ **设置中心（Settings）**：数据一键导出/导入/清空，最近 20 条备份历史审计追踪。
+  - ⚙️ **设置中心（Settings）**：云同步配置、保姆级图文教程、数据一键导出/导入/清空，备份历史审计。
   - 🧪 **自动化测试套件（Test Suite）**：内置纯浏览器运行的端到端与单元测试集（访问 `frontend/test.html`）。
+
+---
+
+## 📖 AI 开发者全景交接手册
+
+如果你是后续接手本项目的 AI Agent 或开发者，请优先查阅根目录下的权威指南：
+👉 **[`AI_DEVELOPMENT_GUIDE.md`](AI_DEVELOPMENT_GUIDE.md)**
+
+该手册涵盖：
+1. **四大开发铁律**（零构建工具、严格数据分层、统一版本源、原子 Commit 规范）。
+2. **详细模块架构与数据流图**。
+3. **Step-by-Step 新增模块与功能扩展范式**。
+4. **Supabase 建表与 RLS 安全策略**。
+5. **视觉设计系统 Token 规范**。
 
 ---
 
 ## 🏗️ 系统技术架构
 
 ```
-Frontend (HTML / CSS / Panels)
+Frontend UI (HTML / CSS / Panels)
        │
        ▼
 Modules Layer (Task / Journal / Reading / Research)
@@ -36,76 +55,22 @@ Data Adapter (core/data-adapter.js)
        ▼
 Storage Layer (core/storage.js)
        │
-       ▼
-localStorage (将来可扩展为 Supabase / IndexedDB / Cloud)
+       ├── localStorage (本地优先持久化)
+       └── SyncManager (core/sync-manager.js) ──► Supabase Cloud
 ```
 
 ---
 
-## 📁 目录结构
+## 🚀 线上访问与运行
 
-```
-xiaohuhu-work-space/
-├── core/                     # 核心框架层
-│   ├── version.js            # 统一版本与 Schema 管理
-│   ├── config.js             # 系统配置
-│   ├── storage.js            # 底层持久化封装
-│   ├── data-adapter.js       # 存储适配器抽象
-│   ├── database.js           # 业务数据库统一接口
-│   ├── backup.js             # 备份与恢复管理器
-│   ├── backup-history.js     # 备份审计历史管理
-│   ├── migration.js          # 数据 Schema 链式迁移器
-│   ├── sync-manager.js       # 云同步接口抽象（V1.1 预留）
-│   ├── event.js              # EventBus 事件总线
-│   └── model.js              # 数据模型与实体生成器
-│
-├── modules/                  # 业务领域模块
-│   ├── task.js               # 任务管理逻辑
-│   ├── journal.js            # 日志管理逻辑
-│   ├── reading.js            # 阅读文献逻辑
-│   └── research.js           # 科研实验逻辑
-│
-├── frontend/                 # 用户界面层
-│   ├── index.html            # 主工作台入口
-│   ├── style.css             # 现代化响应式样式
-│   ├── main.js               # 前端引导加载脚本
-│   ├── dashboard.js          # Dashboard 面板管理器
-│   ├── task-panel.js         # 任务管理面板
-│   ├── journal-panel.js      # 日志面板
-│   ├── reading-panel.js      # 阅读面板
-│   ├── research-panel.js     # 科研记录面板
-│   ├── file-panel.js         # 文件索引面板
-│   ├── settings-panel.js     # 设置与备份面板
-│   └── test.html             # 自动化集成测试套件
-│
-└── docs/                     # 项目规划与开发设计文档
-    ├── project-plan.md       # 长期规划路线图
-    └── antigravity-dev-plan-v1.md
-```
-
----
-
-## 🚀 快速使用
-
-本平台采用纯原生 ES Module 开发，无需 Node.js 或构建工具：
-
-1. 克隆本仓库：
-   ```bash
-   git clone https://github.com/renhaow89/xiaohuhu-work-space.git
-   ```
-2. 直接使用任意静态 HTTP 服务器运行（例如 VSCode Live Server、Python http.server 或静态网页托管）：
-   ```bash
-   npx serve .
-   # 或
-   python -m http.server 8000
-   ```
-3. 访问 `http://localhost:8000/frontend/index.html` 开始使用！
-4. 访问 `http://localhost:8000/frontend/test.html` 运行自动化测试。
+- 🌍 **国内直连（GitHub Pages）**：[https://renhaow89.github.io/xiaohuhu-work-space/](https://renhaow89.github.io/xiaohuhu-work-space/)
+- ⚡ **海外 CDN（Vercel）**：[https://xiaohuhu-work-space.vercel.app/](https://xiaohuhu-work-space.vercel.app/)
+- 🧪 **自动化测试套件**：[https://renhaow89.github.io/xiaohuhu-work-space/frontend/test.html](https://renhaow89.github.io/xiaohuhu-work-space/frontend/test.html)
 
 ---
 
 ## 📌 当前版本
 
-- **当前版本**：`V1.0.8`
+- **当前版本**：`V1.2.0`
 - **Schema 版本**：`1`
-- **维护原则**：模块化、向后兼容、数据安全第一。
+- **维护原则**：纯原生、模块化、向后兼容、数据安全第一。
