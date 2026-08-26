@@ -1,6 +1,6 @@
 // Research Panel
-// 科研实验、研究项目与论文笔记面板
-// V1.0.8: 支持科研记录富文本详情、标签、删除及折叠展示
+// 科研实验、研究项目与论文笔记面板 — 温暖粉橙主题重构
+// 支持科研记录富文本详情、标签体系、删除与优雅折叠展示
 
 import ResearchModule from '../modules/research.js';
 
@@ -24,21 +24,42 @@ export const ResearchPanel = {
         <span class="badge badge-info">共 ${records.length} 条记录</span>
       </div>
 
-      <div class="research-form">
-        <input id="research-title" class="input-text" placeholder="实验主题 / 课题方向 / 调研项目..." />
-        <textarea id="research-content" class="input-textarea" rows="3" placeholder="记录实验假设、参数、数据观察、结论..."></textarea>
-        <div class="research-form-footer">
-          <input id="research-tags" class="input-text tag-input" placeholder="添加标签（用逗号或空格分隔，如：AI, 算法）" />
-          <button id="add-research" class="btn btn-primary">保存科研记录</button>
+      <!-- 新增科研记录表单卡片 -->
+      <div class="form-card">
+        <div class="research-form">
+          <input
+            id="research-title"
+            class="input-text"
+            placeholder="实验主题 / 课题方向 / 调研项目..."
+            autocomplete="off"
+          />
+          <textarea
+            id="research-content"
+            class="input-textarea"
+            rows="3"
+            placeholder="记录实验假设、参数、数据观察、核心结论与下一步规划..."
+          ></textarea>
+          <div class="research-form-footer">
+            <input
+              id="research-tags"
+              class="input-text"
+              placeholder="添加标签（以逗号或空格分隔，如：AI, 算法, 基因）"
+              autocomplete="off"
+            />
+            <button id="add-research" class="btn btn-primary">
+              🧪 保存科研记录
+            </button>
+          </div>
         </div>
       </div>
 
+      <!-- 科研卡片流 -->
       <div class="research-list">
         ${sorted.length ? sorted.map(item => `
           <div class="research-card">
             <div class="research-card-header">
               <strong class="research-title">🔬 ${this.escapeHtml(item.title)}</strong>
-              <div class="research-actions">
+              <div class="task-actions">
                 <span class="item-time">${new Date(item.createdAt).toLocaleDateString()}</span>
                 <button class="btn-icon btn-delete-research" data-id="${item.id}" title="删除记录">🗑️</button>
               </div>
@@ -50,7 +71,12 @@ export const ResearchPanel = {
               </div>
             ` : ''}
           </div>
-        `).join('') : '<p class="empty-state">暂无科研记录，开始记录您的第一个科研探索吧！</p>'}
+        `).join('') : `
+          <div class="empty-state">
+            <div class="empty-icon">🧪</div>
+            <p class="empty-text">暂无科研记录，记录下最新的灵感与实验吧～</p>
+          </div>
+        `}
       </div>
     `;
 
@@ -86,7 +112,8 @@ export const ResearchPanel = {
 
     // 删除
     this.container.querySelectorAll('.btn-delete-research').forEach(btn => {
-      btn.onclick = async () => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
         const id = btn.dataset.id;
         await ResearchModule.delete(id);
         await this.render();
