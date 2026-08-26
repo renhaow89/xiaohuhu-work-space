@@ -1,5 +1,12 @@
 const Dashboard = {
+  initialized: false,
+
   init() {
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
     console.log('Dashboard initialized');
 
     const taskContainer = document.getElementById('task-panel');
