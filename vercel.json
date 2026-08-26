@@ -1,6 +1,6 @@
 {
-  "rewrites": [
-    { "source": "/", "destination": "/frontend/index.html" },
-    { "source": "/test", "destination": "/frontend/test.html" }
+  "redirects": [
+    { "source": "/", "destination": "/frontend/index.html", "permanent": false },
+    { "source": "/test", "destination": "/frontend/test.html", "permanent": false }
   ]
 }
