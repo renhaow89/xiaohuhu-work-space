@@ -1,26 +1,36 @@
 // Journal Module
-// Personal daily work log storage module
+// 个人日常工作日志存储模块
+// V1.0.7: 使用 Database 抗象层，不直接访问 Storage
 
-import Storage from '../core/storage.js';
+import Database from '../core/database.js';
+
+const JOURNAL_KEY = 'journals';
 
 export const JournalModule = {
-    async create(entry) {
-        const journals = await this.list();
+  async list() {
+    return await Database.get(JOURNAL_KEY, []);
+  },
 
-        const item = {
-            id: Date.now(),
-            date: entry.date || new Date().toISOString().slice(0, 10),
-            content: entry.content || '',
-            createdAt: new Date().toISOString()
-        };
+  async create(entry) {
+    const journals = await this.list();
 
-        journals.push(item);
-        await Storage.save('journals', journals);
+    const item = {
+      id: Date.now().toString(),
+      date: entry.date || new Date().toISOString().slice(0, 10),
+      content: entry.content || '',
+      createdAt: new Date().toISOString()
+    };
 
-        return item;
-    },
+    journals.push(item);
+    await Database.set(JOURNAL_KEY, journals);
 
-    async list() {
-        return await Storage.load('journals', []);
-    }
+    return item;
+  },
+
+  async delete(id) {
+    const journals = await this.list();
+    const filtered = journals.filter(j => j.id !== id);
+    await Database.set(JOURNAL_KEY, filtered);
+    return filtered;
+  }
 };
