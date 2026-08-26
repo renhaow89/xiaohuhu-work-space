@@ -1,7 +1,7 @@
 // Journal Module
 // Personal daily work log storage module
 
-import { Storage } from '../core/storage.js';
+import Storage from '../core/storage.js';
 
 export const JournalModule = {
     async create(entry) {
@@ -21,6 +21,6 @@ export const JournalModule = {
     },
 
     async list() {
-        return await Storage.load('journals') || [];
+        return await Storage.load('journals', []);
     }
 };
