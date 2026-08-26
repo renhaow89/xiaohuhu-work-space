@@ -1,15 +1,16 @@
 // Xiaohuhu Work Space Database Layer
 // Unified access point for workspace modules.
+// V1.0.7 uses DataAdapter abstraction.
 
-import Storage from './storage.js';
+import DataAdapter from './data-adapter.js';
 
 const Database = {
   async set(collection, data) {
-    return Storage.save(collection, data);
+    return DataAdapter.save(collection, data);
   },
 
   async get(collection, defaultValue = []) {
-    return Storage.load(collection, defaultValue);
+    return DataAdapter.get(collection, defaultValue);
   },
 
   async append(collection, item) {
@@ -20,11 +21,11 @@ const Database = {
   },
 
   async remove(collection) {
-    return Storage.remove(collection);
+    return DataAdapter.remove(collection);
   },
 
   exportBackup() {
-    return Storage.exportAll();
+    return DataAdapter.exportAll();
   }
 };
 
