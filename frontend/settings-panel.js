@@ -1,10 +1,13 @@
 // Xiaohuhu Work Space Settings Panel
-// V1.0.5
+// V1.0.6
 
 import BackupManager from '../core/backup.js';
+import BackupHistory from '../core/backup-history.js';
 
 export const SettingsPanel = {
   init(container) {
+    const history = BackupHistory.getHistory();
+
     container.innerHTML = `
       <h2>⚙️ 设置中心</h2>
 
@@ -29,8 +32,18 @@ export const SettingsPanel = {
         style="display:none"
       />
 
+      <h3>最近备份</h3>
+      <div id="backup-history">
+        ${history.length ? history.map(item => `
+          <p>
+            ${new Date(item.time).toLocaleString()}<br>
+            ${item.filename || 'backup.json'}
+          </p>
+        `).join('') : '<p>暂无备份记录</p>'}
+      </div>
+
       <p>
-        当前版本：xiaohuhu-work-space V1.0.5
+        当前版本：xiaohuhu-work-space V1.0.6
       </p>
     `;
 
@@ -51,9 +64,7 @@ export const SettingsPanel = {
     fileInput.onchange = async (event) => {
       const file = event.target.files[0];
 
-      if (!file) {
-        return;
-      }
+      if (!file) return;
 
       try {
         const text = await file.text();
@@ -72,7 +83,7 @@ export const SettingsPanel = {
     container
       .querySelector('#clear-data')
       .onclick = () => {
-        if(confirm('确定清空全部数据吗？')) {
+        if (confirm('确定清空全部数据吗？')) {
           BackupManager.clearAllData();
           location.reload();
         }
