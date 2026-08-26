@@ -1,54 +1,83 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Xiaohuhu Work Space - 个人数字工作空间</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xiaohuhu Work Space - 个人数字工作空间</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="app">
-  <div class="header-container">
-    <h1>Xiaohuhu Work Space</h1>
-    <p class="subtitle">个人数字工作空间 · 日常任务 · 工作日志 · 文献阅读 · 科研记录</p>
-  </div>
+  <!-- 左侧固定侧边栏 (110px) / 移动端 (<768px) 转为底部 TabBar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand" id="brand-home" title="Xiaohuhu Work Space">
+      <span class="brand-icon">🌸</span>
+      <span class="brand-title">小呼呼</span>
+    </div>
 
-  <nav class="workspace-nav">
-    <a href="#task-panel">📌 任务</a>
-    <a href="#journal-panel">📝 日志</a>
-    <a href="#reading-panel">📚 阅读</a>
-    <a href="#research-panel">🧪 科研</a>
-    <a href="#file-panel">📁 文件</a>
-    <a href="#settings-panel">⚙️ 设置</a>
-    <a href="test.html" target="_blank">🧪 自动化测试</a>
-  </nav>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-panel="task-panel" title="任务管理">
+        <span class="nav-icon">📌</span>
+        <span class="nav-label">任务</span>
+      </button>
+      <button class="nav-item" data-panel="journal-panel" title="工作日志">
+        <span class="nav-icon">📝</span>
+        <span class="nav-label">日志</span>
+      </button>
+      <button class="nav-item" data-panel="reading-panel" title="文献阅读">
+        <span class="nav-icon">📚</span>
+        <span class="nav-label">阅读</span>
+      </button>
+      <button class="nav-item" data-panel="research-panel" title="科研记录">
+        <span class="nav-icon">🧪</span>
+        <span class="nav-label">科研</span>
+      </button>
+      <button class="nav-item" data-panel="file-panel" title="文件中心">
+        <span class="nav-icon">📁</span>
+        <span class="nav-label">文件</span>
+      </button>
+      <button class="nav-item" data-panel="settings-panel" title="设置中心">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">设置</span>
+      </button>
+    </nav>
+  </aside>
 
-  <div class="workspace-grid">
-    <section class="panel" id="task-panel">
-      <h2>📌 任务管理</h2>
-    </section>
+  <!-- 右侧单面板主内容区 -->
+  <main class="main-content">
+    <!-- 顶部 Header：显示当前面板标题 + 动态中文日期 + 导出/导入快捷按钮 -->
+    <header class="header-container">
+      <div class="header-left">
+        <h1 id="current-panel-title">📌 任务管理</h1>
+      </div>
 
-    <section class="panel" id="journal-panel">
-      <h2>📝 今日记录</h2>
-    </section>
+      <div class="header-right">
+        <div class="header-date" id="current-date">2026年8月26日 星期三</div>
+        <div class="header-actions">
+          <button id="header-export-btn" class="btn btn-secondary btn-sm" title="一键导出全部数据备份">
+            💾 导出
+          </button>
+          <button id="header-import-btn" class="btn btn-secondary btn-sm" title="导入数据备份">
+            📂 导入
+          </button>
+        </div>
+      </div>
+    </header>
 
-    <section class="panel" id="reading-panel">
-      <h2>📚 阅读中心</h2>
-    </section>
-
-    <section class="panel" id="research-panel">
-      <h2>🧪 科研记录</h2>
-    </section>
-
-    <section class="panel" id="file-panel">
-      <h2>📁 文件中心</h2>
-    </section>
-
-    <section class="panel" id="settings-panel">
-      <h2>⚙️ 设置中心</h2>
-    </section>
-  </div>
+    <!-- 单面板容器区（仅激活面板显示） -->
+    <div class="panels-container">
+      <section class="panel active" id="task-panel"></section>
+      <section class="panel" id="journal-panel"></section>
+      <section class="panel" id="reading-panel"></section>
+      <section class="panel" id="research-panel"></section>
+      <section class="panel" id="file-panel"></section>
+      <section class="panel" id="settings-panel"></section>
+    </div>
+  </main>
 </div>
+
+<!-- 全局导入文件选择器 -->
+<input id="global-backup-file-input" type="file" accept="application/json" style="display:none" />
 
 <script type="module" src="main.js"></script>
 </body>
