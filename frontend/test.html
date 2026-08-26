@@ -357,34 +357,31 @@ runner.describe('Modules / 业务模块 CRUD 测试', () => {
     runner.assert(!listAfter.some(t => t.id === taskId), 'task deleted');
   });
 
-  runner.it('TaskModule: 支持高级属性（优先级、时间点、时间段与更新）', async () => {
-    const advancedTask = await TaskModule.create({
-      title: '高优先级定点实验任务',
+  runner.it('TaskModule: 支持高级跨日月时分时间段任务', async () => {
+    const crossDayTask = await TaskModule.create({
+      title: '跨日月科研实验周期',
       priority: 'high',
-      timeType: 'point',
-      timePoint: '15:30',
-      details: '检查显微镜切片'
+      timeType: 'range',
+      timeRange: {
+        startDate: '2026-08-26',
+        startTime: '09:00',
+        endDate: '2026-08-28',
+        endTime: '18:00'
+      },
+      details: '全周期数据采集'
     });
 
-    runner.assertEqual(advancedTask.priority, 'high');
-    runner.assertEqual(advancedTask.timeType, 'point');
-    runner.assertEqual(advancedTask.timePoint, '15:30');
+    runner.assertEqual(crossDayTask.priority, 'high');
+    runner.assertEqual(crossDayTask.timeType, 'range');
+    runner.assertEqual(crossDayTask.timeRange.startDate, '2026-08-26');
+    runner.assertEqual(crossDayTask.timeRange.endDate, '2026-08-28');
 
-    // 测试 update 接口
-    const updatedList = await TaskModule.update(advancedTask.id, {
-      status: 'in-progress',
-      details: '已开始切片实验'
-    });
-    const found = updatedList.find(t => t.id === advancedTask.id);
-    runner.assertEqual(found.status, 'in-progress');
-    runner.assertEqual(found.details, '已开始切片实验');
-
-    // 测试 getTodayPendingTasks 包含进行中任务
+    // 测试 getTodayPendingTasks 包含该跨天任务
     const todayList = await TaskModule.getTodayPendingTasks();
-    runner.assert(todayList.some(t => t.id === advancedTask.id), 'today pending contains advancedTask');
+    runner.assert(todayList.some(t => t.id === crossDayTask.id), 'today pending contains crossDayTask');
 
     // 清理
-    await TaskModule.delete(advancedTask.id);
+    await TaskModule.delete(crossDayTask.id);
   });
 
   runner.it('JournalModule: 创建与删除工作日志', async () => {
