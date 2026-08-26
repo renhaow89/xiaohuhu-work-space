@@ -1,15 +1,31 @@
-// 数据访问层预留
-// 后续将接入 IndexedDB / 云端数据库
+// Xiaohuhu Work Space Database Layer
+// Unified access point for workspace modules.
 
-class Database {
-  static async save(data) {
-    localStorage.setItem('xiaohuhu_workspace', JSON.stringify(data));
+import Storage from './storage.js';
+
+const Database = {
+  async set(collection, data) {
+    return Storage.save(collection, data);
+  },
+
+  async get(collection, defaultValue = []) {
+    return Storage.load(collection, defaultValue);
+  },
+
+  async append(collection, item) {
+    const list = await this.get(collection, []);
+    list.push(item);
+    await this.set(collection, list);
+    return item;
+  },
+
+  async remove(collection) {
+    return Storage.remove(collection);
+  },
+
+  exportBackup() {
+    return Storage.exportAll();
   }
+};
 
-  static async load() {
-    const data = localStorage.getItem('xiaohuhu_workspace');
-    return data ? JSON.parse(data) : {};
-  }
-}
-
-window.Database = Database;
+export default Database;
