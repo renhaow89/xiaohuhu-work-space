@@ -1,8 +1,9 @@
 // Xiaohuhu Work Space Settings Panel
-// V1.0.6
+// V1.0.7: 版本号动态读取，不再硬编码
 
 import BackupManager from '../core/backup.js';
 import BackupHistory from '../core/backup-history.js';
+import AppVersion from '../core/version.js';
 
 export const SettingsPanel = {
   init(container) {
@@ -38,13 +39,12 @@ export const SettingsPanel = {
           <p>
             ${new Date(item.time).toLocaleString()}<br>
             ${item.filename || 'backup.json'}
+            ${item.schema ? `(schema v${item.schema})` : ''}
           </p>
         `).join('') : '<p>暂无备份记录</p>'}
       </div>
 
-      <p>
-        当前版本：xiaohuhu-work-space V1.0.6
-      </p>
+      <p>当前版本：${AppVersion.app} v${AppVersion.version} (schema ${AppVersion.schema})</p>
     `;
 
     const fileInput = container.querySelector('#backup-file-input');
