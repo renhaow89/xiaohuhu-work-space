@@ -135,7 +135,7 @@
   <div class="test-header">
     <div>
       <h1>🧪 Xiaohuhu Work Space 自动化测试套件</h1>
-      <p style="margin: 4px 0 0 0; color: #8A7276; font-size: 12px;">验证 Core 数据层、版本管理、备份迁移与业务模块的完整性</p>
+      <p style="margin: 4px 0 0 0; color: #8A7276; font-size: 12px;">验证 Core 数据层、版本管理、备份迁移、云同步与业务模块的完整性</p>
     </div>
     <button id="runTestsBtn" class="btn-run">▶️ 重新运行全部测试</button>
   </div>
@@ -322,15 +322,51 @@ runner.describe('Core / 备份与迁移 (Backup & Migration)', () => {
   });
 });
 
-// Suite 4: 同步管理器骨架
+// Suite 4: 同步管理器 (Supabase 增量合并与状态)
 runner.describe('Core / 同步管理器 (SyncManager)', () => {
-  runner.it('SyncManager 初始状态应为 disabled/idle', () => {
+  runner.it('SyncManager.getStatus 应返回正确的数据结构', () => {
     const status = SyncManager.getStatus();
-    runner.assertEqual(status.isEnabled, false);
+    runner.assert(typeof status.isEnabled === 'boolean', 'has isEnabled');
+    runner.assert(typeof status.status === 'string', 'has status string');
+    runner.assert('user' in status, 'has user field');
   });
 
-  runner.it('未启用云同步时 pushToCloud 应安全返回未启用提示', async () => {
-    const res = await SyncManager.pushToCloud({});
+  runner.it('SyncManager.saveConfig 能正常保存 Supabase 项目配置', async () => {
+    await SyncManager.saveConfig('https://example.supabase.co/', 'mock-key-123');
+    runner.assertEqual(SyncManager.config.supabaseUrl, 'https://example.supabase.co');
+    runner.assertEqual(SyncManager.config.supabaseAnonKey, 'mock-key-123');
+  });
+
+  runner.it('SyncManager._mergeDataSets 列表项智能合并测试 (Last-Write-Wins)', () => {
+    const local = {
+      tasks: [
+        { id: '1', title: '任务1(本地更新版)', updatedAt: '2026-08-26T12:00:00Z' },
+        { id: '2', title: '本地独有任务', updatedAt: '2026-08-26T10:00:00Z' }
+      ]
+    };
+    const remote = {
+      tasks: [
+        { id: '1', title: '任务1(远端旧版)', updatedAt: '2026-08-26T08:00:00Z' },
+        { id: '3', title: '云端独有任务', updatedAt: '2026-08-26T11:00:00Z' }
+      ]
+    };
+
+    const merged = SyncManager._mergeDataSets(local, remote);
+    runner.assertEqual(merged.tasks.length, 3, 'merged task length is 3');
+
+    const item1 = merged.tasks.find(t => t.id === '1');
+    runner.assertEqual(item1.title, '任务1(本地更新版)', 'item1 last write wins');
+
+    const item2 = merged.tasks.find(t => t.id === '2');
+    runner.assert(!!item2, 'item2 retained');
+
+    const item3 = merged.tasks.find(t => t.id === '3');
+    runner.assert(!!item3, 'item3 pulled from remote');
+  });
+
+  runner.it('未登录时 pushToCloud 应安全拦截', async () => {
+    SyncManager.isEnabled = false;
+    const res = await SyncManager.pushToCloud();
     runner.assertEqual(res.success, false);
   });
 });
@@ -376,11 +412,9 @@ runner.describe('Modules / 业务模块 CRUD 测试', () => {
     runner.assertEqual(crossDayTask.timeRange.startDate, '2026-08-26');
     runner.assertEqual(crossDayTask.timeRange.endDate, '2026-08-28');
 
-    // 测试 getTodayPendingTasks 包含该跨天任务
     const todayList = await TaskModule.getTodayPendingTasks();
     runner.assert(todayList.some(t => t.id === crossDayTask.id), 'today pending contains crossDayTask');
 
-    // 清理
     await TaskModule.delete(crossDayTask.id);
   });
 
