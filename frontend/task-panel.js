@@ -1,6 +1,6 @@
 // Task Panel
 // 任务管理前端面板 — 参考「写下来」与手账温馨风格
-// 包含：顶部「☀️ 今天要处理」置顶提示、状态胶囊、多维时间/优先级录入表单、到点提醒与定时检查
+// 包含：顶部「☀️ 今天要处理」置顶提示、状态胶囊、跨日月时分时间段/定点提醒录入表单、到点提醒与定时检查
 
 import { TaskModule } from '../modules/task.js';
 
@@ -16,7 +16,7 @@ export const TaskPanel = {
   },
 
   /**
-   * 启动后台定时检查（定点提醒与时间段检查）
+   * 启动后台定时检查（定点提醒与跨日月时间段状态流转）
    */
   startReminderTimer() {
     if (this.timerId) return;
@@ -30,6 +30,7 @@ export const TaskPanel = {
     const tasks = await TaskModule.list();
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
+    const nowTs = now.getTime();
     const currentHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     for (const task of tasks) {
@@ -42,12 +43,22 @@ export const TaskPanel = {
         if (this.container) await this.render();
       }
 
-      // 2. 时间段自动激活为进行中
-      if (task.timeType === 'range' && task.date === today && task.timeRange && task.timeRange.start && task.timeRange.end) {
-        if (currentHM >= task.timeRange.start && currentHM <= task.timeRange.end) {
-          if (task.status === 'todo') {
-            await TaskModule.update(task.id, { status: 'in-progress' });
-            if (this.container) await this.render();
+      // 2. 跨日月时间段自动激活为进行中
+      if (task.timeType === 'range' && task.timeRange) {
+        const { startDate, startTime, endDate, endTime } = task.timeRange;
+        if (startDate && endDate) {
+          const startStr = `${startDate}T${startTime || '00:00'}:00`;
+          const endStr = `${endDate}T${endTime || '23:59'}:59`;
+          const sTime = new Date(startStr).getTime();
+          const eTime = new Date(endStr).getTime();
+
+          if (!isNaN(sTime) && !isNaN(eTime)) {
+            if (nowTs >= sTime && nowTs <= eTime) {
+              if (task.status === 'todo') {
+                await TaskModule.update(task.id, { status: 'in-progress' });
+                if (this.container) await this.render();
+              }
+            }
           }
         }
       }
@@ -114,7 +125,10 @@ export const TaskPanel = {
       return true;
     });
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const defaultStartDt = `${todayStr}T09:00`;
+    const defaultEndDt = `${todayStr}T18:00`;
 
     this.container.innerHTML = `
       <!-- 顶部置顶区：☀️ 今天要处理 -->
@@ -198,7 +212,7 @@ export const TaskPanel = {
             </select>
           </div>
 
-          <div class="form-col col-date">
+          <div class="form-col col-date" id="singleDateWrap">
             <input
               id="taskDateInput"
               type="date"
@@ -213,8 +227,8 @@ export const TaskPanel = {
           <div class="form-col col-timetype">
             <select id="taskTimeTypeSelect" class="select-input">
               <option value="none" selected>🔘 无具体时间</option>
-              <option value="point">⏰ 定点提醒</option>
-              <option value="range">⏱️ 时间段任务</option>
+              <option value="point">⏰ 定点提醒 (时分)</option>
+              <option value="range">⏱️ 时间段任务 (跨日月时分)</option>
             </select>
           </div>
 
@@ -223,9 +237,9 @@ export const TaskPanel = {
               <input id="taskTimePoint" type="time" class="input-text" placeholder="提醒时间" />
             </div>
             <div id="timeRangeWrap" class="time-range-group" style="display: none;">
-              <input id="taskTimeRangeStart" type="time" class="input-text" title="开始时间" />
+              <input id="taskRangeStart" type="datetime-local" class="input-text datetime-range-input" value="${defaultStartDt}" title="开始日期与时间" />
               <span class="time-range-sep">至</span>
-              <input id="taskTimeRangeEnd" type="time" class="input-text" title="结束时间" />
+              <input id="taskRangeEnd" type="datetime-local" class="input-text datetime-range-input" value="${defaultEndDt}" title="结束日期与时间" />
             </div>
           </div>
 
@@ -275,7 +289,7 @@ export const TaskPanel = {
                     </div>
                     <div class="task-sub-meta">
                       ${this.renderTimeTag(task)}
-                      <span class="meta-date">📅 ${task.date || task.createdAt.split('T')[0]}</span>
+                      ${task.timeType !== 'range' ? `<span class="meta-date">📅 ${task.date || task.createdAt.split('T')[0]}</span>` : ''}
                       ${task.details ? `<span class="meta-details" title="${this.escapeHtml(task.details)}">📝 ${this.escapeHtml(task.details)}</span>` : ''}
                     </div>
                   </div>
@@ -308,8 +322,16 @@ export const TaskPanel = {
     if (task.timeType === 'point' && task.timePoint) {
       return `<span class="badge-time badge-time-point">⏰ ${task.timePoint}</span>`;
     }
-    if (task.timeType === 'range' && task.timeRange && task.timeRange.start) {
-      return `<span class="badge-time badge-time-range">⏱️ ${task.timeRange.start} - ${task.timeRange.end || '...'}</span>`;
+    if (task.timeType === 'range' && task.timeRange) {
+      const { startDate, startTime, endDate, endTime } = task.timeRange;
+      if (startDate && endDate) {
+        if (startDate === endDate) {
+          const timeStr = startTime && endTime ? `${startTime} - ${endTime}` : startTime || endTime || '全天';
+          return `<span class="badge-time badge-time-range">⏱️ ${startDate.slice(5)} ${timeStr}</span>`;
+        } else {
+          return `<span class="badge-time badge-time-range">⏱️ ${startDate.slice(5)} ${startTime || '00:00'} 至 ${endDate.slice(5)} ${endTime || '23:59'}</span>`;
+        }
+      }
     }
     return '';
   },
@@ -331,8 +353,8 @@ export const TaskPanel = {
     const timePointWrap = this.container.querySelector('#timePointWrap');
     const timeRangeWrap = this.container.querySelector('#timeRangeWrap');
     const timePointInput = this.container.querySelector('#taskTimePoint');
-    const timeRangeStart = this.container.querySelector('#taskTimeRangeStart');
-    const timeRangeEnd = this.container.querySelector('#taskTimeRangeEnd');
+    const rangeStartInput = this.container.querySelector('#taskRangeStart');
+    const rangeEndInput = this.container.querySelector('#taskRangeEnd');
     const detailsInput = this.container.querySelector('#taskDetailsInput');
     const writeBtn = this.container.querySelector('#writeTaskBtn');
 
@@ -368,16 +390,36 @@ export const TaskPanel = {
         return;
       }
 
+      let timeRangeData = {
+        startDate: dateInput.value || new Date().toISOString().split('T')[0],
+        startTime: '',
+        endDate: dateInput.value || new Date().toISOString().split('T')[0],
+        endTime: ''
+      };
+
+      if (timeTypeSelect.value === 'range' && rangeStartInput && rangeEndInput) {
+        const startVal = rangeStartInput.value; // 'YYYY-MM-DDTHH:mm'
+        const endVal = rangeEndInput.value;
+
+        if (startVal) {
+          const [sDate, sTime] = startVal.split('T');
+          timeRangeData.startDate = sDate;
+          timeRangeData.startTime = sTime || '00:00';
+        }
+        if (endVal) {
+          const [eDate, eTime] = endVal.split('T');
+          timeRangeData.endDate = eDate;
+          timeRangeData.endTime = eTime || '23:59';
+        }
+      }
+
       const taskData = {
         title,
         priority: prioritySelect.value,
         date: dateInput.value || new Date().toISOString().split('T')[0],
         timeType: timeTypeSelect.value,
         timePoint: timePointInput ? timePointInput.value : '',
-        timeRange: {
-          start: timeRangeStart ? timeRangeStart.value : '',
-          end: timeRangeEnd ? timeRangeEnd.value : ''
-        },
+        timeRange: timeRangeData,
         details: detailsInput.value.trim(),
         status: 'todo'
       };
