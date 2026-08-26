@@ -22,10 +22,19 @@ export const SettingsPanel = {
         </button>
       </div>
 
+      <input
+        id="backup-file-input"
+        type="file"
+        accept="application/json"
+        style="display:none"
+      />
+
       <p>
         当前版本：xiaohuhu-work-space V1.0.5
       </p>
     `;
+
+    const fileInput = container.querySelector('#backup-file-input');
 
     container
       .querySelector('#export-backup')
@@ -36,8 +45,29 @@ export const SettingsPanel = {
     container
       .querySelector('#import-backup')
       .onclick = () => {
-        alert('导入功能将在下一步接入文件选择器');
+        fileInput.click();
       };
+
+    fileInput.onchange = async (event) => {
+      const file = event.target.files[0];
+
+      if (!file) {
+        return;
+      }
+
+      try {
+        const text = await file.text();
+        const backup = JSON.parse(text);
+
+        await BackupManager.importData(backup);
+
+        alert('数据恢复成功，即将刷新页面');
+        location.reload();
+      } catch (error) {
+        console.error(error);
+        alert('备份文件无效，恢复失败');
+      }
+    };
 
     container
       .querySelector('#clear-data')
