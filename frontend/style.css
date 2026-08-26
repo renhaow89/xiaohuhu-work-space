@@ -146,8 +146,7 @@ body {
 }
 
 .nav-item:hover {
-  background: var(--primary-light);
-  color: var(--primary-color);
+  background: var(--primary-light);\n  color: var(--primary-color);
   transform: translateY(-2px);
 }
 
@@ -356,7 +355,7 @@ body {
   cursor: pointer;
   padding: 6px;
   font-size: 15px;
-  opacity: 0.65;
+  opacity: 0.75;
   border-radius: var(--radius-full);
   transition: all 0.2s ease;
   display: inline-flex;
@@ -512,38 +511,308 @@ body {
 }
 
 /* ==========================================================================
-   任务面板 (参考「写下来」风格：顶部统计条 + 新增卡片 + 列表区)
+   顶部置顶区：☀️ 今天要处理 (参考手账重点置顶卡片)
    ========================================================================== */
-.task-stats-bar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 18px;
+.today-focus-card {
+  background: linear-gradient(135deg, rgba(255, 245, 240, 0.95) 0%, rgba(255, 240, 245, 0.95) 100%);
+  border: 1px solid rgba(244, 115, 138, 0.25);
+  border-radius: var(--radius-lg);
+  padding: 18px 22px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 18px rgba(244, 115, 138, 0.08);
+  position: relative;
+  overflow: hidden;
 }
 
-.stat-pill {
-  flex: 1;
-  padding: 10px 16px;
-  border-radius: var(--radius-md);
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
+.today-focus-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.today-focus-title {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  box-shadow: var(--shadow-soft);
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
 }
 
-.stat-pill-label {
+.focus-icon {
+  font-size: 18px;
+}
+
+.focus-count-badge {
+  background: var(--primary-gradient);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 2px 6px rgba(244, 115, 138, 0.3);
+}
+
+.focus-subtitle {
   font-size: 12px;
-  font-weight: 600;
   color: var(--text-muted);
 }
 
-.stat-pill-num {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--primary-color);
+.today-focus-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
+.today-focus-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(244, 115, 138, 0.18);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  transition: all 0.25s ease;
+}
+
+.today-focus-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+  border-color: rgba(244, 115, 138, 0.4);
+}
+
+.focus-item-active {
+  border-left: 4px solid var(--warning);
+  background: #FFFDF9;
+}
+
+.focus-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.focus-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.focus-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.focus-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.focus-item-detail {
+  background: rgba(255, 240, 243, 0.6);
+  padding: 1px 8px;
+  border-radius: 4px;
+  color: var(--text-muted);
+}
+
+.focus-item-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.status-pill-active {
+  background: var(--warning-light);
+  color: #D97706;
+  border: 1px solid var(--warning-border);
+  animation: pulsePill 2s infinite ease-in-out;
+}
+
+@keyframes pulsePill {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(0.98); }
+}
+
+.today-empty-state {
+  text-align: center;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-cat-emoji {
+  font-size: 34px;
+  margin-bottom: 6px;
+  filter: drop-shadow(0 2px 6px rgba(244, 115, 138, 0.2));
+  animation: floatEmoji 3s ease-in-out infinite;
+}
+
+.today-empty-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ==========================================================================
+   每日任务模块头与统计胶囊 (参考截图排版)
+   ========================================================================== */
+.task-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.task-section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.task-title-icon-box {
+  font-size: 22px;
+  background: #FFF0F3;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+}
+
+.task-main-heading {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-main);
+}
+
+.task-sub-heading {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 2px 0 0 0;
+}
+
+.task-stats-pills {
+  display: flex;
+  gap: 8px;
+}
+
+.stat-bubble {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--border-color);
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  color: var(--text-muted);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+}
+
+.stat-bubble strong {
+  color: var(--text-main);
+  margin-left: 2px;
+}
+
+.stat-bubble-warn strong {
+  color: #F59E0B;
+}
+
+.stat-bubble-success strong {
+  color: #10B981;
+}
+
+/* ==========================================================================
+   任务录入表单卡片 (手账风格网格排版)
+   ========================================================================== */
+.task-form-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.task-form-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.col-title {
+  flex: 3;
+}
+
+.col-priority {
+  flex: 1.5;
+}
+
+.col-date {
+  flex: 1.5;
+}
+
+.col-timetype {
+  flex: 1.5;
+}
+
+.col-timevalues {
+  flex: 2;
+  display: flex;
+  align-items: center;
+}
+
+.col-details {
+  flex: 3;
+}
+
+.time-range-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.time-range-sep {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.task-form-footer {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 4px;
+}
+
+.btn-submit-task {
+  padding: 9px 28px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   任务项视觉增强与优先级/时间标签
+   ========================================================================== */
 .task-list-container {
   margin-top: 8px;
 }
@@ -585,6 +854,11 @@ body {
   color: var(--text-muted);
 }
 
+.task-item-inprogress {
+  border-left: 4px solid var(--warning);
+  background: #FFFDF9;
+}
+
 .task-left {
   display: flex;
   align-items: center;
@@ -605,6 +879,7 @@ body {
   place-content: center;
   transition: all 0.2s ease;
   background: #ffffff;
+  flex-shrink: 0;
 }
 
 .task-checkbox:checked {
@@ -619,22 +894,135 @@ body {
   color: white;
 }
 
+.task-main-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.task-title-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .task-title {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-main);
   word-break: break-word;
+}
+
+.task-sub-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.meta-date, .meta-details {
+  color: var(--text-muted);
+}
+
+.priority-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.priority-high, .priority-tag-high {
+  background: #EF4444;
+}
+
+.priority-medium, .priority-tag-medium {
+  background: #F59E0B;
+}
+
+.priority-low, .priority-tag-low {
+  background: #10B981;
+}
+
+.priority-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  color: #ffffff;
+}
+
+.badge-time {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.badge-time-point {
+  background: #EFF6FF;
+  color: #2563EB;
+  border: 1px solid #BFDBFE;
+}
+
+.badge-time-range {
+  background: #FFF7ED;
+  color: #EA580C;
+  border: 1px solid #FED7AA;
 }
 
 .task-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-.item-time {
-  font-size: 11px;
-  color: var(--text-muted);
+/* ==========================================================================
+   全局 Toast 提醒组件
+   ========================================================================== */
+.global-toast-container {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.app-toast {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--primary-color);
+  border-left: 5px solid var(--primary-color);
+  box-shadow: 0 6px 24px rgba(244, 115, 138, 0.25);
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  backdrop-filter: blur(10px);
+  animation: slideInToast 0.3s ease-out;
+  pointer-events: auto;
+  max-width: 360px;
+}
+
+.toast-fadeout {
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: all 0.35s ease;
+}
+
+@keyframes slideInToast {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ==========================================================================
@@ -953,8 +1341,26 @@ body {
     padding: 16px;
   }
 
-  .task-stats-bar {
+  .task-form-row {
     flex-direction: column;
     gap: 8px;
+  }
+
+  .task-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .today-focus-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .global-toast-container {
+    top: 12px;
+    right: 12px;
+    left: 12px;
   }
 }
