@@ -1,14 +1,23 @@
 // Research Module
-// Scientific project and experiment records
+// Manage experiments, projects and research records
 
 const ResearchModule = {
-  create(title) {
+  create(title, content = '') {
     return {
       type: 'research',
       title,
-      content: '',
+      content,
       files: [],
+      tags: [],
       createdAt: new Date().toISOString()
+    };
+  },
+
+  attachFile(record, file) {
+    return {
+      ...record,
+      files: [...(record.files || []), file],
+      updatedAt: new Date().toISOString()
     };
   }
 };
