@@ -1,13 +1,14 @@
 // Research Module
-// Manage experiments, projects and research records
+// 管理实验、项目和科研记录
+// V1.0.7: 使用 Database 抗象层，不直接访问 Storage
 
-import Storage from '../core/storage.js';
+import Database from '../core/database.js';
 
 const RESEARCH_KEY = 'workspace_research';
 
 const ResearchModule = {
   async list() {
-    return await Storage.load(RESEARCH_KEY, []);
+    return await Database.get(RESEARCH_KEY, []);
   },
 
   async create(title, content = '') {
@@ -24,9 +25,27 @@ const ResearchModule = {
     };
 
     records.push(record);
-    await Storage.save(RESEARCH_KEY, records);
+    await Database.set(RESEARCH_KEY, records);
 
     return record;
+  },
+
+  async update(id, changes = {}) {
+    const records = await this.list();
+
+    const updated = records.map(record => {
+      if (record.id === id) {
+        return {
+          ...record,
+          ...changes,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return record;
+    });
+
+    await Database.set(RESEARCH_KEY, updated);
+    return updated;
   },
 
   async attachFile(id, file) {
@@ -43,8 +62,15 @@ const ResearchModule = {
       return record;
     });
 
-    await Storage.save(RESEARCH_KEY, updated);
+    await Database.set(RESEARCH_KEY, updated);
     return updated;
+  },
+
+  async delete(id) {
+    const records = await this.list();
+    const filtered = records.filter(r => r.id !== id);
+    await Database.set(RESEARCH_KEY, filtered);
+    return filtered;
   }
 };
 
