@@ -1,32 +1,39 @@
 // Xiaohuhu Work Space — Dashboard 控制器
-// 重构：侧边栏单面板切换、顶部 Header 动态中文日期与快捷备份/导入
+// 侧边栏单面板切换、顶部 Header 动态中文日期与快捷备份/导入
+// 移动端兼容性增强：直接静态导入子面板，消除竞态条件
 
+import { TaskPanel } from './task-panel.js';
+import { JournalPanel } from './journal-panel.js';
+import { ReadingPanel } from './reading-panel.js';
+import { ResearchPanel } from './research-panel.js';
+import { FilePanel } from './file-panel.js';
+import { SettingsPanel } from './settings-panel.js';
 import BackupManager from '../core/backup.js';
 
 const PANEL_CONFIG = {
   'task-panel': {
     title: '📌 任务管理',
-    init: (c) => window.TaskPanel && window.TaskPanel.init(c)
+    init: (c) => TaskPanel && TaskPanel.init(c)
   },
   'journal-panel': {
     title: '📝 今日记录',
-    init: (c) => window.JournalPanel && window.JournalPanel.init(c)
+    init: (c) => JournalPanel && JournalPanel.init(c)
   },
   'reading-panel': {
     title: '📚 阅读中心',
-    init: (c) => window.ReadingPanel && window.ReadingPanel.init(c)
+    init: (c) => ReadingPanel && ReadingPanel.init(c)
   },
   'research-panel': {
     title: '🧪 科研记录',
-    init: (c) => window.ResearchPanel && window.ResearchPanel.init(c)
+    init: (c) => ResearchPanel && ResearchPanel.init(c)
   },
   'file-panel': {
     title: '📁 文件中心',
-    init: (c) => window.FilePanel && window.FilePanel.init(c)
+    init: (c) => FilePanel && FilePanel.init(c)
   },
   'settings-panel': {
     title: '⚙️ 设置中心',
-    init: (c) => window.SettingsPanel && window.SettingsPanel.init(c)
+    init: (c) => SettingsPanel && SettingsPanel.init(c)
   }
 };
 
@@ -77,7 +84,11 @@ export const Dashboard = {
     Object.keys(PANEL_CONFIG).forEach((panelId) => {
       const container = document.getElementById(panelId);
       if (container && PANEL_CONFIG[panelId].init) {
-        PANEL_CONFIG[panelId].init(container);
+        try {
+          PANEL_CONFIG[panelId].init(container);
+        } catch (e) {
+          console.error(`[Dashboard] Failed to init panel ${panelId}:`, e);
+        }
       }
     });
   },
@@ -140,7 +151,11 @@ export const Dashboard = {
 
     // 4. 更新 Hash（不刷新页面）
     if (window.location.hash !== `#${panelId}`) {
-      history.replaceState(null, '', `#${panelId}`);
+      try {
+        history.replaceState(null, '', `#${panelId}`);
+      } catch (e) {
+        window.location.hash = `#${panelId}`;
+      }
     }
   },
 
@@ -203,8 +218,11 @@ export const Dashboard = {
 
 window.Dashboard = Dashboard;
 
-document.addEventListener('DOMContentLoaded', () => {
+// 保证在 DOM 就绪时稳定执行（移动端兼容）
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => Dashboard.init());
+} else {
   Dashboard.init();
-});
+}
 
 export default Dashboard;
