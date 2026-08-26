@@ -7,13 +7,12 @@ const AppVersion = {
   app: 'xiaohuhu-work-space',
 
   /** 应用版本号（语义化版本） */
-  version: '1.1.0',
+  version: '1.2.0',
 
   /**
    * 数据 Schema 版本号（整数）
    * 每次数据结构发生不兼容变化时 +1
-   * schema=1: V1.0.x 初始结构 & V1.1 扩展（向下兼容）
-   * schema=2: 预留（云同步阶段）
+   * schema=1: V1.0.x 初始结构 & V1.1/V1.2 扩展（向下兼容）
    */
   schema: 1
 };
