@@ -1,5 +1,5 @@
 // Xiaohuhu Work Space Backup Manager
-// V1.0.7 — 引入统一版本管理，备份文件包含 schema 字段
+// V1.0.8 — 引入统一版本管理与异步备份历史
 
 import Database from './database.js';
 import BackupHistory from './backup-history.js';
@@ -56,7 +56,7 @@ const BackupManager = {
 
     URL.revokeObjectURL(url);
 
-    BackupHistory.addRecord({
+    await BackupHistory.addRecord({
       filename,
       version: AppVersion.version,
       schema: AppVersion.schema,
@@ -73,14 +73,13 @@ const BackupManager = {
     return !!(
       backup &&
       backup.app === AppVersion.app &&
-      typeof backup.data === 'object' &&
-      typeof backup.schema === 'number'
+      typeof backup.data === 'object'
     );
   },
 
   /**
    * 导入备份数据
-   * 通过 Storage 抓象层写入，不直接操作 localStorage
+   * 通过 Storage 抽象层写入，不直接操作 localStorage
    */
   async importData(backup) {
     if (!this.validateBackup(backup)) {
@@ -88,8 +87,7 @@ const BackupManager = {
     }
 
     // 导入前尝试 migration（如果 schema 不匹配）
-    // TODO: V1.1 接入 migration.js 进行自动迁移
-    if (backup.schema !== AppVersion.schema) {
+    if (typeof backup.schema === 'number' && backup.schema !== AppVersion.schema) {
       console.warn(
         `[BackupManager] Schema mismatch: backup=${backup.schema}, current=${AppVersion.schema}. Migration may be needed.`
       );
