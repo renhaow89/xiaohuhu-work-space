@@ -1,6 +1,6 @@
 // Journal Panel
-// 个人日常工作日志面板
-// V1.0.8: 支持分类标签、快捷键保存、删除与优雅卡片流展示
+// 个人日常工作日志面板 — 温暖粉橙主题重构
+// 支持分类标签、快捷键保存、删除与优雅卡片流展示
 
 import { JournalModule } from '../modules/journal.js';
 
@@ -28,7 +28,7 @@ export const JournalPanel = {
         <span class="badge badge-info">共 ${journals.length} 篇日志</span>
       </div>
 
-      <div class="journal-box">
+      <div class="form-card">
         <div class="category-selector">
           ${categories.map(cat => `
             <button type="button" class="tag-btn ${this.selectedCategory === cat ? 'active' : ''}" data-cat="${cat}">
@@ -37,27 +37,39 @@ export const JournalPanel = {
           `).join('')}
         </div>
 
-        <textarea id="journal-input" class="input-textarea" rows="3" placeholder="记录今天的工作、实验与思考... (支持 Ctrl+Enter 快捷保存)"></textarea>
+        <textarea
+          id="journal-input"
+          class="input-textarea"
+          rows="3"
+          placeholder="记录今天的工作、实验与思考... (支持 Ctrl + Enter 快捷保存)"
+        ></textarea>
         
         <div class="journal-action-bar">
-          <span class="tip-text">按 Ctrl + Enter 快捷提交</span>
-          <button id="save-journal" class="btn btn-primary">保存记录</button>
+          <span class="tip-text">💡 提示：按 Ctrl + Enter 快捷提交</span>
+          <button id="save-journal" class="btn btn-primary">
+            ✨ 保存记录
+          </button>
         </div>
+      </div>
 
-        <div class="journal-list">
-          ${sorted.length ? sorted.map(j => `
-            <div class="journal-card">
-              <div class="journal-card-header">
-                <div class="journal-meta">
-                  <span class="badge badge-category">${this.escapeHtml(j.category || '📝记录')}</span>
-                  <span class="journal-date">${j.date || (j.createdAt ? new Date(j.createdAt).toLocaleDateString() : '')}</span>
-                </div>
-                <button class="btn-icon btn-delete-journal" data-id="${j.id}" title="删除日志">🗑️</button>
+      <div class="journal-list">
+        ${sorted.length ? sorted.map(j => `
+          <div class="journal-card">
+            <div class="journal-card-header">
+              <div class="journal-meta">
+                <span class="badge badge-category">${this.escapeHtml(j.category || '📝记录')}</span>
+                <span class="journal-date">${j.date || (j.createdAt ? new Date(j.createdAt).toLocaleDateString() : '')}</span>
               </div>
-              <div class="journal-content">${this.escapeHtml(j.content)}</div>
+              <button class="btn-icon btn-delete-journal" data-id="${j.id}" title="删除日志">🗑️</button>
             </div>
-          `).join('') : '<p class="empty-state">暂无日志记录，快写下今天的第一个想法吧！</p>'}
-        </div>
+            <div class="journal-content">${this.escapeHtml(j.content)}</div>
+          </div>
+        `).join('') : `
+          <div class="empty-state">
+            <div class="empty-icon">📝</div>
+            <p class="empty-text">今日暂无记录，快写下今天的第一个想法吧～</p>
+          </div>
+        `}
       </div>
     `;
 
@@ -122,3 +134,5 @@ export const JournalPanel = {
       .replace(/\n/g, '<br/>');
   }
 };
+
+window.JournalPanel = JournalPanel;
