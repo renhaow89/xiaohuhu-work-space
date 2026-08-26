@@ -6,6 +6,7 @@ const Dashboard = {
     const readingContainer = document.getElementById('reading-panel');
     const researchContainer = document.getElementById('research-panel');
     const fileContainer = document.getElementById('file-panel');
+    const journalContainer = document.getElementById('journal-panel');
 
     if (window.TaskPanel && taskContainer) {
       TaskPanel.init(taskContainer);
@@ -21,6 +22,10 @@ const Dashboard = {
 
     if (window.FilePanel && fileContainer) {
       FilePanel.init(fileContainer);
+    }
+
+    if (window.JournalPanel && journalContainer) {
+      JournalPanel.init(journalContainer);
     }
   }
 };
