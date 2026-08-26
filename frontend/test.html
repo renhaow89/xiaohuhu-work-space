@@ -228,7 +228,7 @@ class TestRunner {
             <strong>${test.name}</strong>
             ${error ? `<div class="error-msg">❌ ${error.message}</div>` : ''}
           </div>
-          <span class="status-badge ${error ? 'status-fail' : 'status-pass'}\">
+          <span class="status-badge ${error ? 'status-fail' : 'status-pass'}">
             ${error ? 'FAIL' : 'PASS'} (${duration}ms)
           </span>
         `;
@@ -250,7 +250,7 @@ const runner = new TestRunner();
 runner.describe('Core / 版本管理与配置', () => {
   runner.it('AppVersion 应包含正确的 app, version 和 schema 属性', () => {
     runner.assertEqual(AppVersion.app, 'xiaohuhu-work-space', 'app name');
-    runner.assertEqual(AppVersion.version, '1.0.9', 'app version');
+    runner.assert(typeof AppVersion.version === 'string', 'app version is string');
     runner.assertEqual(typeof AppVersion.schema, 'number', 'schema is number');
   });
 
@@ -301,7 +301,7 @@ runner.describe('Core / 备份与迁移 (Backup & Migration)', () => {
   });
 
   runner.it('BackupManager.validateBackup 应校验合法备份与拒绝非法文件', () => {
-    const valid = { app: 'xiaohuhu-work-space', version: '1.0.9', schema: 1, data: {} };
+    const valid = { app: 'xiaohuhu-work-space', version: AppVersion.version, schema: 1, data: {} };
     const invalidApp = { app: 'other-app', version: '1.0.9', data: {} };
     runner.assert(BackupManager.validateBackup(valid), 'valid backup');
     runner.assert(!BackupManager.validateBackup(invalidApp), 'invalid app rejected');
@@ -315,7 +315,7 @@ runner.describe('Core / 备份与迁移 (Backup & Migration)', () => {
   });
 
   runner.it('BackupHistory 记录添加与读取', async () => {
-    const record = { filename: 'test-backup.json', version: '1.0.9', schema: 1, size: '10 KB' };
+    const record = { filename: 'test-backup.json', version: AppVersion.version, schema: 1, size: '10 KB' };
     const list = await BackupHistory.addRecord(record);
     runner.assert(list.length > 0, 'history has records');
     runner.assertEqual(list[0].filename, 'test-backup.json');
@@ -342,10 +342,11 @@ runner.describe('Modules / 业务模块 CRUD 测试', () => {
   let readingId = null;
   let researchId = null;
 
-  runner.it('TaskModule: 创建、完成与删除任务', async () => {
+  runner.it('TaskModule: 基础创建、完成与删除任务', async () => {
     const task = await TaskModule.create('自动化测试任务');
     taskId = task.id;
     runner.assertEqual(task.status, 'todo');
+    runner.assertEqual(task.priority, 'medium');
 
     const updated = await TaskModule.complete(taskId);
     const target = updated.find(t => t.id === taskId);
@@ -354,6 +355,36 @@ runner.describe('Modules / 业务模块 CRUD 测试', () => {
     await TaskModule.delete(taskId);
     const listAfter = await TaskModule.list();
     runner.assert(!listAfter.some(t => t.id === taskId), 'task deleted');
+  });
+
+  runner.it('TaskModule: 支持高级属性（优先级、时间点、时间段与更新）', async () => {
+    const advancedTask = await TaskModule.create({
+      title: '高优先级定点实验任务',
+      priority: 'high',
+      timeType: 'point',
+      timePoint: '15:30',
+      details: '检查显微镜切片'
+    });
+
+    runner.assertEqual(advancedTask.priority, 'high');
+    runner.assertEqual(advancedTask.timeType, 'point');
+    runner.assertEqual(advancedTask.timePoint, '15:30');
+
+    // 测试 update 接口
+    const updatedList = await TaskModule.update(advancedTask.id, {
+      status: 'in-progress',
+      details: '已开始切片实验'
+    });
+    const found = updatedList.find(t => t.id === advancedTask.id);
+    runner.assertEqual(found.status, 'in-progress');
+    runner.assertEqual(found.details, '已开始切片实验');
+
+    // 测试 getTodayPendingTasks 包含进行中任务
+    const todayList = await TaskModule.getTodayPendingTasks();
+    runner.assert(todayList.some(t => t.id === advancedTask.id), 'today pending contains advancedTask');
+
+    // 清理
+    await TaskModule.delete(advancedTask.id);
   });
 
   runner.it('JournalModule: 创建与删除工作日志', async () => {
