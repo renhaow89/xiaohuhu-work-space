@@ -1,6 +1,6 @@
 // Task Panel
-// 任务管理前端面板
-// V1.0.8: 支持任务筛选、快捷完成、删除、统计及键盘快捷键
+// 任务管理前端面板 — 参考「写下来」温馨轻便风格
+// 包含上方统计卡片、表单录入、筛选卡片、柔和空状态与优雅交互
 
 import { TaskModule } from '../modules/task.js';
 
@@ -35,24 +35,58 @@ export const TaskPanel = {
         </div>
       </div>
 
-      <div class="input-group">
-        <input id="taskInput" class="input-text" placeholder="添加新任务，按回车快速创建..." />
-        <button id="addTaskBtn" class="btn btn-primary">添加任务</button>
+      <!-- 上方统计条（写下来风格） -->
+      <div class="task-stats-bar">
+        <div class="stat-pill">
+          <span class="stat-pill-label">📝 全部待办</span>
+          <span class="stat-pill-num">${allTasks.length}</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-pill-label">⏳ 进行中</span>
+          <span class="stat-pill-num" style="color: #F59E0B;">${todoCount}</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-pill-label">✨ 已搞定</span>
+          <span class="stat-pill-num" style="color: #10B981;">${doneCount}</span>
+        </div>
       </div>
 
+      <!-- 新增任务表单卡片 -->
+      <div class="form-card">
+        <div class="input-group">
+          <input
+            id="taskInput"
+            class="input-text"
+            placeholder="写下你要做的事，按回车快速添加..."
+            autocomplete="off"
+          />
+          <button id="addTaskBtn" class="btn btn-primary">
+            ➕ 添加任务
+          </button>
+        </div>
+      </div>
+
+      <!-- 筛选标签栏 -->
       <div class="filter-tabs">
         <button class="filter-tab ${this.currentFilter === 'all' ? 'active' : ''}" data-filter="all">全部 (${allTasks.length})</button>
         <button class="filter-tab ${this.currentFilter === 'todo' ? 'active' : ''}" data-filter="todo">进行中 (${todoCount})</button>
         <button class="filter-tab ${this.currentFilter === 'done' ? 'active' : ''}" data-filter="done">已完成 (${doneCount})</button>
       </div>
 
+      <!-- 任务列表区 -->
       <div class="task-list-container">
         ${filteredTasks.length ? `
           <ul id="taskList" class="item-list">
             ${filteredTasks.map(task => `
               <li class="task-item ${task.status === 'done' ? 'task-done' : ''}">
                 <div class="task-left">
-                  <input type="checkbox" class="task-checkbox" data-id="${task.id}" ${task.status === 'done' ? 'checked' : ''} />
+                  <input
+                    type="checkbox"
+                    class="task-checkbox"
+                    data-id="${task.id}"
+                    ${task.status === 'done' ? 'checked' : ''}
+                    title="${task.status === 'done' ? '标记为未完成' : '标记为已完成'}"
+                  />
                   <span class="task-title">${this.escapeHtml(task.title)}</span>
                 </div>
                 <div class="task-actions">
@@ -63,7 +97,10 @@ export const TaskPanel = {
             `).join('')}
           </ul>
         ` : `
-          <p class="empty-state">暂无${this.currentFilter === 'all' ? '' : this.currentFilter === 'todo' ? '进行中' : '已完成'}任务</p>
+          <div class="empty-state">
+            <div class="empty-icon">🍃</div>
+            <p class="empty-text">今日暂无${this.currentFilter === 'all' ? '' : this.currentFilter === 'todo' ? '进行中' : '已完成'}任务，好好休息吧～</p>
+          </div>
         `}
       </div>
     `;
@@ -103,7 +140,6 @@ export const TaskPanel = {
           if (cb.checked) {
             await TaskModule.complete(id);
           } else {
-            // 重新置为 todo
             target.status = 'todo';
             target.updatedAt = new Date().toISOString();
             const Database = (await import('../core/database.js')).default;
@@ -141,3 +177,5 @@ export const TaskPanel = {
       .replace(/"/g, '&quot;');
   }
 };
+
+window.TaskPanel = TaskPanel;
