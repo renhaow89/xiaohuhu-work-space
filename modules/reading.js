@@ -1,14 +1,22 @@
 // Reading Module
-// Paper and knowledge reading management
+// Manage papers, books and knowledge records
 
 const ReadingModule = {
-  create(title) {
+  create(title, notes = '') {
     return {
       type: 'reading',
       title,
-      notes: '',
+      notes,
       tags: [],
       createdAt: new Date().toISOString()
+    };
+  },
+
+  update(record, changes = {}) {
+    return {
+      ...record,
+      ...changes,
+      updatedAt: new Date().toISOString()
     };
   }
 };
