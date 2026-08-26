@@ -14,6 +14,7 @@ const Dashboard = {
     const researchContainer = document.getElementById('research-panel');
     const fileContainer = document.getElementById('file-panel');
     const journalContainer = document.getElementById('journal-panel');
+    const settingsContainer = document.getElementById('settings-panel');
 
     if (window.TaskPanel && taskContainer) {
       TaskPanel.init(taskContainer);
@@ -33,6 +34,10 @@ const Dashboard = {
 
     if (window.JournalPanel && journalContainer) {
       JournalPanel.init(journalContainer);
+    }
+
+    if (window.SettingsPanel && settingsContainer) {
+      SettingsPanel.init(settingsContainer);
     }
   }
 };
