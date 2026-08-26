@@ -1,12 +1,12 @@
 import { TaskPanel } from './task-panel.js';
+import './reading-panel.js';
+import './research-panel.js';
+import './dashboard.js';
 
-const dashboard = document.querySelector('#dashboard');
+window.TaskPanel = TaskPanel;
 
-if (dashboard) {
-  dashboard.innerHTML = `
-    <section id="task-section"></section>
-  `;
-
-  const taskSection = document.querySelector('#task-section');
-  TaskPanel.render(taskSection);
-}
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.Dashboard) {
+    window.Dashboard.init();
+  }
+});
