@@ -9,6 +9,14 @@ const TaskModule = {
       status: 'todo',
       createdAt: new Date().toISOString()
     };
+  },
+
+  complete(task) {
+    return {
+      ...task,
+      status: 'done',
+      updatedAt: new Date().toISOString()
+    };
   }
 };
 
