@@ -1,5 +1,5 @@
 // Xiaohuhu Work Space Settings Panel
-// 设置中心面板 — 包含多端云同步 (Supabase 邮箱登录/注册)、备份管理与数据清空
+// 设置中心面板 — 包含多端云同步 (Supabase 邮箱登录/注册)、内置保姆级配置手册、备份管理与数据清空
 
 import BackupManager from '../core/backup.js';
 import BackupHistory from '../core/backup-history.js';
@@ -52,12 +52,75 @@ export const SettingsPanel = {
               <input id="cfgSupabaseUrl" class="input-text" placeholder="https://your-project.supabase.co" value="${this.escapeHtml(SyncManager.config.supabaseUrl || '')}" />
             </div>
             <div class="input-row">
-              <label class="input-label">Anon Key:</label>
-              <input id="cfgSupabaseKey" type="password" class="input-text" placeholder="eyJhbGciOi..." value="${this.escapeHtml(SyncManager.config.supabaseAnonKey || '')}" />
+              <label class="input-label">Anon Key / Publishable Key:</label>
+              <input id="cfgSupabaseKey" type="password" class="input-text" placeholder="eyJhbGciOi... 或 sb_publishable_..." value="${this.escapeHtml(SyncManager.config.supabaseAnonKey || '')}" />
             </div>
             <div class="config-actions">
               <button id="saveConfigBtn" class="btn btn-secondary btn-sm">💾 保存配置</button>
               <span id="configMsg" class="tip-msg"></span>
+            </div>
+          </div>
+        </details>
+
+        <!-- 📖 内置保姆级 Supabase 申请与配置图文手册 -->
+        <details class="sync-tutorial-details">
+          <summary class="sync-tutorial-summary">📖 如何免费申请与配置 Supabase 云端？(零基础保姆级图文教程)</summary>
+          <div class="sync-tutorial-content">
+            <div class="tutorial-step">
+              <div class="step-num">Step 1</div>
+              <div class="step-desc">
+                <strong>打开 Supabase 并登录：</strong><br>
+                电脑浏览器访问 <a href="https://supabase.com" target="_blank" style="color: var(--primary-color);">https://supabase.com</a>，点击右上角 <code>Start your project</code>（推荐直接用 GitHub 账号一键授权登录，完全永久免费）。
+              </div>
+            </div>
+            
+            <div class="tutorial-step">
+              <div class="step-num">Step 2</div>
+              <div class="step-desc">
+                <strong>新建云端项目 (New project)：</strong><br>
+                • <strong>Project Name</strong>：填 <code>xiaohuhu</code>（或任意名称）<br>
+                • <strong>Database Password</strong>：输入或生成一个密码并记住<br>
+                • <strong>Region（地区）</strong>：下拉选择 <code>Southeast Asia (Singapore) - 新加坡</code>（物理距离最近、国内直连最稳定）<br>
+                • 点击绿色 <code>Create new project</code>，等待 1 分钟创建完成。
+              </div>
+            </div>
+
+            <div class="tutorial-step">
+              <div class="step-num">Step 3</div>
+              <div class="step-desc">
+                <strong>运行建表与专属加密防盗锁 (RLS)：</strong><br>
+                点击左侧黑色菜单第 3 个图标 <code>SQL Editor (>_)</code> $\to$ 点击 <code>+ New query</code> $\to$ 粘贴下方代码 $\to$ 点击右下角绿色 <code>Run</code> 按钮（执行成功将显示 <code>Success. No rows returned</code>）：
+                <pre class="tutorial-code-block"><code>CREATE TABLE IF NOT EXISTS user_workspace_data (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  schema INT NOT NULL DEFAULT 1,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE user_workspace_data ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own workspace data"
+ON user_workspace_data FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);</code></pre>
+                <div class="tutorial-tip-box">
+                  💡 <strong>为什么要做这步？</strong><br>
+                  ① <strong>建储物柜</strong>：在云端建好存放你任务和日志的数据表；<br>
+                  ② <strong>上安全锁</strong>：开启 RLS（行级安全防护），确保只有用你自己的邮箱密码才能解密读取数据，其他人绝对无法窥探。
+                </div>
+              </div>
+            </div>
+
+            <div class="tutorial-step">
+              <div class="step-num">Step 4</div>
+              <div class="step-desc">
+                <strong>获取连接配置 (URL & Anon Key)：</strong><br>
+                • 点击左下角 <code>⚙️ Project Settings</code> $\to$ 点击 <code>API</code> 菜单；<br>
+                • 复制 <strong>Project URL</strong>（如 <code>https://xxx.supabase.co</code>）；<br>
+                • 复制 <strong>Publishable key</strong>（或 <code>anon public</code> Key）；<br>
+                • 粘贴回上方小呼呼的配置框并点击「保存配置」即可！
+              </div>
             </div>
           </div>
         </details>
