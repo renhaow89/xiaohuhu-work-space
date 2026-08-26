@@ -422,6 +422,22 @@ runner.describe('Modules / 业务模块 CRUD 测试', () => {
   });
 });
 
+// Suite 6: PWA 离线支持与 Manifest 校验
+runner.describe('PWA / 离线支持与 Web App Manifest', () => {
+  runner.it('浏览器环境支持 ServiceWorker 特性', () => {
+    runner.assert('serviceWorker' in navigator, 'navigator.serviceWorker supported');
+  });
+
+  runner.it('Web App Manifest 文件存在且合法', async () => {
+    const res = await fetch('./manifest.json');
+    runner.assertEqual(res.status, 200, 'manifest.json status 200');
+    const manifest = await res.json();
+    runner.assertEqual(manifest.short_name, '小呼呼');
+    runner.assertEqual(manifest.display, 'standalone');
+    runner.assert(manifest.icons.length >= 2, 'manifest has icons');
+  });
+});
+
 // 自动运行
 runner.run();
 
