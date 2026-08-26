@@ -1,44 +1,138 @@
 // Xiaohuhu Work Space Settings Panel
-// 设置中心面板 — 温暖粉橙主题重构
-// 支持异步读取备份历史、数据一键导入导出、清空与测试入口
+// 设置中心面板 — 包含多端云同步 (Supabase 邮箱登录/注册)、备份管理与数据清空
 
 import BackupManager from '../core/backup.js';
 import BackupHistory from '../core/backup-history.js';
+import SyncManager from '../core/sync-manager.js';
 import AppVersion from '../core/version.js';
 
 export const SettingsPanel = {
+  container: null,
+  authTab: 'login', // 'login' | 'signup'
+
   async init(container) {
-    await this.render(container);
+    this.container = container;
+    await SyncManager.init();
+    await this.render();
   },
 
-  async render(container) {
-    if (!container) return;
+  async render() {
+    if (!this.container) return;
 
     const history = await BackupHistory.getHistory();
+    const syncStatus = SyncManager.getStatus();
 
-    container.innerHTML = `
+    this.container.innerHTML = `
       <div class="panel-header">
         <h2>⚙️ 设置中心</h2>
         <span class="badge badge-info">v${AppVersion.version}</span>
       </div>
 
-      <!-- 操作卡片 -->
+      <!-- ☁️ 多端云同步卡片 (Supabase 邮箱同步) -->
+      <div class="cloud-sync-card">
+        <div class="cloud-sync-header">
+          <div class="cloud-sync-title">
+            <span class="cloud-icon">☁️</span>
+            <div>
+              <h3 class="sync-main-title">多端云同步 (Supabase)</h3>
+              <p class="sync-sub-title">支持手机与电脑数据实时双向互通</p>
+            </div>
+          </div>
+          <span class="sync-badge ${syncStatus.isEnabled ? 'sync-badge-active' : 'sync-badge-offline'}">
+            ${syncStatus.isEnabled ? '🟢 已连接云端' : '⚪ 离线单机模式'}
+          </span>
+        </div>
+
+        <!-- 项目配置折叠区域 -->
+        <details class="sync-config-details" ${!syncStatus.hasConfig ? 'open' : ''}>
+          <summary class="sync-config-summary">⚙️ Supabase 项目连接配置 (初次使用或修改请点开)</summary>
+          <div class="sync-config-body">
+            <div class="input-row">
+              <label class="input-label">Project URL:</label>
+              <input id="cfgSupabaseUrl" class="input-text" placeholder="https://your-project.supabase.co" value="${this.escapeHtml(SyncManager.config.supabaseUrl || '')}" />
+            </div>
+            <div class="input-row">
+              <label class="input-label">Anon Key:</label>
+              <input id="cfgSupabaseKey" type="password" class="input-text" placeholder="eyJhbGciOi..." value="${this.escapeHtml(SyncManager.config.supabaseAnonKey || '')}" />
+            </div>
+            <div class="config-actions">
+              <button id="saveConfigBtn" class="btn btn-secondary btn-sm">💾 保存配置</button>
+              <span id="configMsg" class="tip-msg"></span>
+            </div>
+          </div>
+        </details>
+
+        <!-- 认证与同步主操作区 -->
+        <div class="sync-main-body">
+          ${syncStatus.isEnabled && syncStatus.user ? `
+            <!-- 已登录状态 -->
+            <div class="logged-in-box">
+              <div class="user-info-row">
+                <span class="user-avatar">🌸</span>
+                <div class="user-details">
+                  <div class="user-email">${this.escapeHtml(syncStatus.user.email)}</div>
+                  <div class="sync-time-label">🕒 最后同步时间：${syncStatus.lastSyncTime ? new Date(syncStatus.lastSyncTime).toLocaleString() : '尚未同步'}</div>
+                </div>
+              </div>
+
+              <div class="sync-buttons-row">
+                <button id="manualSyncBtn" class="btn btn-primary">
+                  🔄 立即双向同步
+                </button>
+                <button id="pushCloudBtn" class="btn btn-secondary btn-sm">
+                  ⬆️ 推送到云端
+                </button>
+                <button id="pullCloudBtn" class="btn btn-secondary btn-sm">
+                  ⬇️ 从云端拉取
+                </button>
+                <button id="logoutBtn" class="btn btn-danger btn-sm">
+                  🚪 退出登录
+                </button>
+              </div>
+              <div id="syncFeedbackMsg" class="sync-feedback-text"></div>
+            </div>
+          ` : `
+            <!-- 未登录状态：邮箱登录/注册表单 -->
+            <div class="auth-form-box">
+              <div class="auth-tabs">
+                <button class="auth-tab ${this.authTab === 'login' ? 'active' : ''}" id="tabLogin">🔑 邮箱登录</button>
+                <button class="auth-tab ${this.authTab === 'signup' ? 'active' : ''}" id="tabSignup">✉️ 注册新账号</button>
+              </div>
+
+              <div class="auth-inputs">
+                <input id="authEmail" type="email" class="input-text" placeholder="输入你的邮箱地址..." autocomplete="email" />
+                <input id="authPassword" type="password" class="input-text" placeholder="输入密码 (至少6位)..." autocomplete="current-password" />
+              </div>
+
+              <div class="auth-actions">
+                <button id="authSubmitBtn" class="btn btn-primary">
+                  ${this.authTab === 'login' ? '🔐 登录并开启多端同步' : '✉️ 注册并绑定设备'}
+                </button>
+              </div>
+              <div id="authFeedbackMsg" class="auth-feedback-text"></div>
+            </div>
+          `}
+        </div>
+      </div>
+
+      <!-- 数据备份与迁移操作卡片 -->
       <div class="form-card">
+        <h3 style="font-size: 14px; margin: 0 0 12px 0;">💾 本地数据与备份操作</h3>
         <div class="settings-actions">
           <button id="export-backup" class="btn btn-primary">
-            💾 导出数据
+            💾 导出全量备份 (JSON)
           </button>
 
           <button id="import-backup" class="btn btn-secondary">
-            📂 导入备份
+            📂 导入数据备份
           </button>
 
           <a href="test.html" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
-            🧪 自动化测试
+            🧪 自动化测试套件
           </a>
 
           <button id="clear-data" class="btn btn-danger">
-            🗑️ 清空全部数据
+            🗑️ 清空本地全部数据
           </button>
         </div>
       </div>
@@ -77,40 +171,200 @@ export const SettingsPanel = {
       </div>
     `;
 
+    this.bindEvents();
+  },
+
+  bindEvents() {
+    const container = this.container;
+
+    // 1. 配置保存
+    const saveCfgBtn = container.querySelector('#saveConfigBtn');
+    if (saveCfgBtn) {
+      saveCfgBtn.onclick = async () => {
+        const url = container.querySelector('#cfgSupabaseUrl').value;
+        const key = container.querySelector('#cfgSupabaseKey').value;
+        await SyncManager.saveConfig(url, key);
+        const msg = container.querySelector('#configMsg');
+        msg.textContent = '✅ 项目配置已保存';
+        setTimeout(() => { if (msg) msg.textContent = ''; }, 3000);
+      };
+    }
+
+    // 2. Auth Tab 切换
+    const tabLogin = container.querySelector('#tabLogin');
+    const tabSignup = container.querySelector('#tabSignup');
+    if (tabLogin) {
+      tabLogin.onclick = () => {
+        this.authTab = 'login';
+        this.render();
+      };
+    }
+    if (tabSignup) {
+      tabSignup.onclick = () => {
+        this.authTab = 'signup';
+        this.render();
+      };
+    }
+
+    // 3. 登录 / 注册 提交
+    const authSubmitBtn = container.querySelector('#authSubmitBtn');
+    if (authSubmitBtn) {
+      authSubmitBtn.onclick = async () => {
+        const email = container.querySelector('#authEmail').value.trim();
+        const password = container.querySelector('#authPassword').value.trim();
+        const feedback = container.querySelector('#authFeedbackMsg');
+
+        if (!email || !password) {
+          feedback.textContent = '❌ 请输入邮箱和密码';
+          feedback.className = 'auth-feedback-text text-danger';
+          return;
+        }
+
+        feedback.textContent = '⏳ 正在连接云端...';
+        feedback.className = 'auth-feedback-text';
+        authSubmitBtn.disabled = true;
+
+        try {
+          if (this.authTab === 'signup') {
+            const res = await SyncManager.signup(email, password);
+            feedback.textContent = '✅ ' + res.message;
+            feedback.className = 'auth-feedback-text text-success';
+            if (!res.needEmailConfirm) {
+              await this.render();
+            }
+          } else {
+            await SyncManager.login(email, password);
+            feedback.textContent = '✅ 登录成功！';
+            feedback.className = 'auth-feedback-text text-success';
+            await this.render();
+          }
+        } catch (err) {
+          feedback.textContent = '❌ ' + err.message;
+          feedback.className = 'auth-feedback-text text-danger';
+        } finally {
+          authSubmitBtn.disabled = false;
+        }
+      };
+    }
+
+    // 4. 登出
+    const logoutBtn = container.querySelector('#logoutBtn');
+    if (logoutBtn) {
+      logoutBtn.onclick = async () => {
+        if (confirm('确定退出当前账号登录吗？退出后将暂停云同步。')) {
+          await SyncManager.logout();
+          await this.render();
+        }
+      };
+    }
+
+    // 5. 立即双向同步
+    const manualSyncBtn = container.querySelector('#manualSyncBtn');
+    if (manualSyncBtn) {
+      manualSyncBtn.onclick = async () => {
+        const feedback = container.querySelector('#syncFeedbackMsg');
+        feedback.textContent = '⏳ 正在进行双向数据同步...';
+        feedback.className = 'sync-feedback-text';
+        manualSyncBtn.disabled = true;
+
+        try {
+          const res = await SyncManager.sync();
+          feedback.textContent = '✅ ' + res.message;
+          feedback.className = 'sync-feedback-text text-success';
+          setTimeout(() => this.render(), 1200);
+        } catch (err) {
+          feedback.textContent = '❌ 同步失败: ' + err.message;
+          feedback.className = 'sync-feedback-text text-danger';
+        } finally {
+          manualSyncBtn.disabled = false;
+        }
+      };
+    }
+
+    // 6. 仅推送 / 仅拉取
+    const pushCloudBtn = container.querySelector('#pushCloudBtn');
+    if (pushCloudBtn) {
+      pushCloudBtn.onclick = async () => {
+        const feedback = container.querySelector('#syncFeedbackMsg');
+        feedback.textContent = '⏳ 正在推送本地数据到云端...';
+        try {
+          await SyncManager.pushToCloud();
+          feedback.textContent = '✅ 推送成功！';
+          feedback.className = 'sync-feedback-text text-success';
+          setTimeout(() => this.render(), 1200);
+        } catch (err) {
+          feedback.textContent = '❌ 推送失败: ' + err.message;
+          feedback.className = 'sync-feedback-text text-danger';
+        }
+      };
+    }
+
+    const pullCloudBtn = container.querySelector('#pullCloudBtn');
+    if (pullCloudBtn) {
+      pullCloudBtn.onclick = async () => {
+        const feedback = container.querySelector('#syncFeedbackMsg');
+        feedback.textContent = '⏳ 正在从云端拉取数据...';
+        try {
+          const res = await SyncManager.pullFromCloud();
+          if (res.data) {
+            const Database = (await import('../core/database.js')).default;
+            for (const [k, v] of Object.entries(res.data)) {
+              await Database.set(k, v);
+            }
+          }
+          feedback.textContent = '✅ 拉取成功并已更新本地！';
+          feedback.className = 'sync-feedback-text text-success';
+          setTimeout(() => this.render(), 1200);
+        } catch (err) {
+          feedback.textContent = '❌ 拉取失败: ' + err.message;
+          feedback.className = 'sync-feedback-text text-danger';
+        }
+      };
+    }
+
+    // 7. 本地导出 / 导入 / 清空
     const fileInput = container.querySelector('#backup-file-input');
+    const exportBtn = container.querySelector('#export-backup');
+    const importBtn = container.querySelector('#import-backup');
+    const clearBtn = container.querySelector('#clear-data');
 
-    container.querySelector('#export-backup').onclick = async () => {
-      await BackupManager.downloadBackup();
-      await this.render(container);
-    };
+    if (exportBtn) {
+      exportBtn.onclick = async () => {
+        await BackupManager.downloadBackup();
+        await this.render();
+      };
+    }
 
-    container.querySelector('#import-backup').onclick = () => {
-      fileInput.click();
-    };
+    if (importBtn) {
+      importBtn.onclick = () => fileInput.click();
+    }
 
-    fileInput.onchange = async (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
+    if (fileInput) {
+      fileInput.onchange = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
 
-      try {
-        const text = await file.text();
-        const backup = JSON.parse(text);
+        try {
+          const text = await file.text();
+          const backup = JSON.parse(text);
+          await BackupManager.importData(backup);
+          alert('✅ 数据恢复成功，即将刷新页面');
+          location.reload();
+        } catch (error) {
+          console.error(error);
+          alert('❌ 备份文件无效或损坏: ' + error.message);
+        }
+      };
+    }
 
-        await BackupManager.importData(backup);
-        alert('✅ 数据恢复成功，即将刷新页面');
-        location.reload();
-      } catch (error) {
-        console.error(error);
-        alert('❌ 备份文件无效或损坏，恢复失败: ' + error.message);
-      }
-    };
-
-    container.querySelector('#clear-data').onclick = () => {
-      if (confirm('⚠️ 警告：确定清空全部本地数据吗？此操作不可逆！')) {
-        BackupManager.clearAllData();
-        location.reload();
-      }
-    };
+    if (clearBtn) {
+      clearBtn.onclick = () => {
+        if (confirm('⚠️ 警告：确定清空全部本地数据吗？此操作不可逆！')) {
+          BackupManager.clearAllData();
+          location.reload();
+        }
+      };
+    }
   },
 
   escapeHtml(str) {
