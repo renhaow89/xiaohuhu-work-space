@@ -30,30 +30,34 @@ const BackupManager = {
 
     link.href = url;
     link.download = `xiaohuhu-backup-${Date.now()}.json`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
   },
 
-  async validateBackup(backup) {
+  validateBackup(backup) {
     return !!(
       backup &&
       backup.app === 'xiaohuhu-work-space' &&
-      backup.data
+      typeof backup.data === 'object'
     );
   },
 
   async importData(backup) {
-    if (!(await this.validateBackup(backup))) {
+    if (!this.validateBackup(backup)) {
       throw new Error('Invalid backup file');
     }
 
-    Object.keys(backup.data).forEach((key) => {
+    Object.entries(backup.data).forEach(([key, value]) => {
       localStorage.setItem(
         key,
-        JSON.stringify(backup.data[key])
+        JSON.stringify(value)
       );
     });
+
+    return true;
   },
 
   clearAllData() {
