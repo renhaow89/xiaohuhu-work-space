@@ -1,8 +1,26 @@
 // Xiaohuhu Work Space core entry
 
-const APP_CONFIG = {
-  name: 'Xiaohuhu Work Space',
-  version: '0.1.0'
-};
+import { storage } from './storage.js';
+import { config } from './config.js';
 
-console.log(APP_CONFIG.name, APP_CONFIG.version);
+const modules = {};
+
+export function registerModule(name, module) {
+  modules[name] = module;
+}
+
+export function getModule(name) {
+  return modules[name];
+}
+
+export async function initApp() {
+  console.log(config.appName, config.version);
+
+  await storage.init();
+
+  return {
+    config,
+    modules,
+    storage
+  };
+}
