@@ -1,6 +1,10 @@
 import { TaskModule } from '../modules/task.js';
 
 export const TaskPanel = {
+  init(container) {
+    this.render(container);
+  },
+
   render(container) {
     if (!container) return;
 
@@ -17,8 +21,18 @@ export const TaskPanel = {
 
     tasks.forEach(task => {
       const item = document.createElement('li');
-      item.textContent = `${task.title} (${task.status})`;
+      item.innerHTML = `
+        <span>${task.title} (${task.status})</span>
+        ${task.status === 'todo' ? `<button data-id="${task.id}" class="completeBtn">完成</button>` : ''}
+      `;
       list.appendChild(item);
+    });
+
+    container.querySelectorAll('.completeBtn').forEach(button => {
+      button.onclick = () => {
+        TaskModule.complete(button.dataset.id);
+        this.render(container);
+      };
     });
 
     container.querySelector('#addTaskBtn').onclick = () => {
