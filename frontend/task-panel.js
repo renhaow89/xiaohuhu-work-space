@@ -1,6 +1,6 @@
 // Task Panel
 // 任务管理前端面板 — 参考「写下来」与手账温馨风格
-// 包含：顶部「☀️ 今天要处理」置顶提示、状态胶囊、跨日月时分时间段/定点提醒录入表单、到点提醒与定时检查
+// 包含：顶部「☀️ 今天要处理」置顶提示、状态胶囊、明确日月时分时间段/定点提醒录入表单、到点提醒与定时检查
 
 import { TaskModule } from '../modules/task.js';
 
@@ -127,8 +127,6 @@ export const TaskPanel = {
 
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
-    const defaultStartDt = `${todayStr}T09:00`;
-    const defaultEndDt = `${todayStr}T18:00`;
 
     this.container.innerHTML = `
       <!-- 顶部置顶区：☀️ 今天要处理 -->
@@ -192,7 +190,7 @@ export const TaskPanel = {
         </div>
       </div>
 
-      <!-- 任务录入卡片（参考截图手账排版） -->
+      <!-- 任务录入卡片（参考手账网格排版） -->
       <div class="task-form-card">
         <div class="task-form-row">
           <div class="form-col col-title">
@@ -218,6 +216,16 @@ export const TaskPanel = {
               type="date"
               class="input-text date-input"
               value="${todayStr}"
+              title="任务日期"
+            />
+          </div>
+
+          <div class="form-col col-details" id="row1DetailsWrap" style="display: none;">
+            <input
+              id="taskDetailsInputAlt"
+              class="input-text"
+              placeholder="任务详情 / 备注（选填）"
+              autocomplete="off"
             />
           </div>
         </div>
@@ -232,18 +240,28 @@ export const TaskPanel = {
             </select>
           </div>
 
-          <div class="form-col col-timevalues" id="timeValuesContainer" style="display: none;">
-            <div id="timePointWrap" style="display: none; width: 100%;">
-              <input id="taskTimePoint" type="time" class="input-text" placeholder="提醒时间" />
+          <!-- 定点提醒时间输入 -->
+          <div class="form-col col-timepoint" id="timePointWrap" style="display: none;">
+            <input id="taskTimePoint" type="time" class="input-text" placeholder="提醒时间" />
+          </div>
+
+          <!-- 跨日月时分时间段输入区 -->
+          <div class="form-col col-timerange-full" id="timeRangeWrap" style="display: none;">
+            <div class="range-field-group">
+              <span class="range-label">开始:</span>
+              <input id="taskRangeStartDate" type="date" class="input-text date-input-sm" value="${todayStr}" title="开始日期" />
+              <input id="taskRangeStartTime" type="time" class="input-text time-input-sm" value="09:00" title="开始时间" />
             </div>
-            <div id="timeRangeWrap" class="time-range-group" style="display: none;">
-              <input id="taskRangeStart" type="datetime-local" class="input-text datetime-range-input" value="${defaultStartDt}" title="开始日期与时间" />
-              <span class="time-range-sep">至</span>
-              <input id="taskRangeEnd" type="datetime-local" class="input-text datetime-range-input" value="${defaultEndDt}" title="结束日期与时间" />
+            <span class="time-range-sep">至</span>
+            <div class="range-field-group">
+              <span class="range-label">结束:</span>
+              <input id="taskRangeEndDate" type="date" class="input-text date-input-sm" value="${todayStr}" title="结束日期" />
+              <input id="taskRangeEndTime" type="time" class="input-text time-input-sm" value="18:00" title="结束时间" />
             </div>
           </div>
 
-          <div class="form-col col-details">
+          <!-- 详情备注（非时间段模式下显示在第二行） -->
+          <div class="form-col col-details" id="row2DetailsWrap">
             <input
               id="taskDetailsInput"
               class="input-text"
@@ -348,14 +366,22 @@ export const TaskPanel = {
     const titleInput = this.container.querySelector('#taskTitleInput');
     const prioritySelect = this.container.querySelector('#taskPrioritySelect');
     const dateInput = this.container.querySelector('#taskDateInput');
+    const singleDateWrap = this.container.querySelector('#singleDateWrap');
+    const row1DetailsWrap = this.container.querySelector('#row1DetailsWrap');
+    const row2DetailsWrap = this.container.querySelector('#row2DetailsWrap');
+
     const timeTypeSelect = this.container.querySelector('#taskTimeTypeSelect');
-    const timeValuesContainer = this.container.querySelector('#timeValuesContainer');
     const timePointWrap = this.container.querySelector('#timePointWrap');
     const timeRangeWrap = this.container.querySelector('#timeRangeWrap');
     const timePointInput = this.container.querySelector('#taskTimePoint');
-    const rangeStartInput = this.container.querySelector('#taskRangeStart');
-    const rangeEndInput = this.container.querySelector('#taskRangeEnd');
+
+    const rangeStartDateInput = this.container.querySelector('#taskRangeStartDate');
+    const rangeStartTimeInput = this.container.querySelector('#taskRangeStartTime');
+    const rangeEndDateInput = this.container.querySelector('#taskRangeEndDate');
+    const rangeEndTimeInput = this.container.querySelector('#taskRangeEndTime');
+
     const detailsInput = this.container.querySelector('#taskDetailsInput');
+    const detailsInputAlt = this.container.querySelector('#taskDetailsInputAlt');
     const writeBtn = this.container.querySelector('#writeTaskBtn');
 
     // 时间类型下拉联动
@@ -363,11 +389,15 @@ export const TaskPanel = {
       timeTypeSelect.onchange = () => {
         const val = timeTypeSelect.value;
         if (val === 'none') {
-          timeValuesContainer.style.display = 'none';
+          singleDateWrap.style.display = 'block';
+          row1DetailsWrap.style.display = 'none';
+          row2DetailsWrap.style.display = 'block';
           timePointWrap.style.display = 'none';
           timeRangeWrap.style.display = 'none';
         } else if (val === 'point') {
-          timeValuesContainer.style.display = 'flex';
+          singleDateWrap.style.display = 'block';
+          row1DetailsWrap.style.display = 'none';
+          row2DetailsWrap.style.display = 'block';
           timePointWrap.style.display = 'block';
           timeRangeWrap.style.display = 'none';
 
@@ -376,7 +406,9 @@ export const TaskPanel = {
             Notification.requestPermission();
           }
         } else if (val === 'range') {
-          timeValuesContainer.style.display = 'flex';
+          singleDateWrap.style.display = 'none';
+          row1DetailsWrap.style.display = 'block';
+          row2DetailsWrap.style.display = 'none';
           timePointWrap.style.display = 'none';
           timeRangeWrap.style.display = 'flex';
         }
@@ -390,37 +422,24 @@ export const TaskPanel = {
         return;
       }
 
+      const isRange = timeTypeSelect.value === 'range';
+      const details = (isRange && detailsInputAlt && detailsInputAlt.value.trim()) || (detailsInput ? detailsInput.value.trim() : '');
+
       let timeRangeData = {
-        startDate: dateInput.value || new Date().toISOString().split('T')[0],
-        startTime: '',
-        endDate: dateInput.value || new Date().toISOString().split('T')[0],
-        endTime: ''
+        startDate: (isRange && rangeStartDateInput && rangeStartDateInput.value) || dateInput.value || new Date().toISOString().split('T')[0],
+        startTime: (isRange && rangeStartTimeInput && rangeStartTimeInput.value) || '09:00',
+        endDate: (isRange && rangeEndDateInput && rangeEndDateInput.value) || dateInput.value || new Date().toISOString().split('T')[0],
+        endTime: (isRange && rangeEndTimeInput && rangeEndTimeInput.value) || '18:00'
       };
-
-      if (timeTypeSelect.value === 'range' && rangeStartInput && rangeEndInput) {
-        const startVal = rangeStartInput.value; // 'YYYY-MM-DDTHH:mm'
-        const endVal = rangeEndInput.value;
-
-        if (startVal) {
-          const [sDate, sTime] = startVal.split('T');
-          timeRangeData.startDate = sDate;
-          timeRangeData.startTime = sTime || '00:00';
-        }
-        if (endVal) {
-          const [eDate, eTime] = endVal.split('T');
-          timeRangeData.endDate = eDate;
-          timeRangeData.endTime = eTime || '23:59';
-        }
-      }
 
       const taskData = {
         title,
         priority: prioritySelect.value,
-        date: dateInput.value || new Date().toISOString().split('T')[0],
+        date: isRange ? timeRangeData.startDate : (dateInput.value || new Date().toISOString().split('T')[0]),
         timeType: timeTypeSelect.value,
         timePoint: timePointInput ? timePointInput.value : '',
         timeRange: timeRangeData,
-        details: detailsInput.value.trim(),
+        details,
         status: 'todo'
       };
 
