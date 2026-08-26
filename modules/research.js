@@ -1,12 +1,12 @@
 // Research Module
 // 管理实验、项目和科研记录
-// V1.0.7: 使用 Database 抗象层，不直接访问 Storage
+// V1.0.8: 支持命名与默认导出兼容
 
 import Database from '../core/database.js';
 
 const RESEARCH_KEY = 'workspace_research';
 
-const ResearchModule = {
+export const ResearchModule = {
   async list() {
     return await Database.get(RESEARCH_KEY, []);
   },
