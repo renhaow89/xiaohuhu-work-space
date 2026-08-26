@@ -2,20 +2,50 @@ body {
   font-family: Arial, sans-serif;
   margin: 0;
   padding: 20px;
+  background: #f7f7f7;
 }
 
-.dashboard {
-  max-width: 900px;
+#app {
+  max-width: 1200px;
   margin: auto;
 }
 
-.card {
+h1 {
+  text-align: center;
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.panel {
+  background: white;
   border: 1px solid #ddd;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 16px;
-  margin-bottom: 16px;
+  min-height: 120px;
 }
 
 button {
   cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  body {
+    padding: 12px;
+  }
+
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    padding: 12px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
 }
