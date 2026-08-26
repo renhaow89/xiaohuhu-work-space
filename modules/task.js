@@ -1,13 +1,14 @@
 // Task Module
-// Responsible for task management
+// 负责任务管理
+// V1.0.7: 使用 Database 抗象层，不直接访问 Storage
 
-import Storage from '../core/storage.js';
+import Database from '../core/database.js';
 
 const TASK_KEY = 'workspace_tasks';
 
 export const TaskModule = {
   async list() {
-    return await Storage.load(TASK_KEY, []);
+    return await Database.get(TASK_KEY, []);
   },
 
   async create(title) {
@@ -22,7 +23,7 @@ export const TaskModule = {
     };
 
     tasks.push(task);
-    await Storage.save(TASK_KEY, tasks);
+    await Database.set(TASK_KEY, tasks);
 
     return task;
   },
@@ -41,7 +42,14 @@ export const TaskModule = {
       return task;
     });
 
-    await Storage.save(TASK_KEY, updated);
+    await Database.set(TASK_KEY, updated);
     return updated;
+  },
+
+  async delete(id) {
+    const tasks = await this.list();
+    const filtered = tasks.filter(task => task.id !== id);
+    await Database.set(TASK_KEY, filtered);
+    return filtered;
   }
 };
