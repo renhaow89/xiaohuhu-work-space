@@ -1,10 +1,11 @@
 // Xiaohuhu Work Space Backup Manager
-// V1.0.5 data backup center
+// V1.0.6 backup history integration
 
 import Database from './database.js';
+import BackupHistory from './backup-history.js';
 
 const BackupManager = {
-  version: '1.0.5',
+  version: '1.0.6',
 
   async exportData() {
     const data = Database.exportBackup();
@@ -19,22 +20,34 @@ const BackupManager = {
 
   async downloadBackup() {
     const backup = await this.exportData();
+    const json = JSON.stringify(backup, null, 2);
 
     const blob = new Blob(
-      [JSON.stringify(backup, null, 2)],
+      [json],
       { type: 'application/json' }
     );
+
+    const filename = `xiaohuhu-backup-${Date.now()}.json`;
 
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
 
     link.href = url;
-    link.download = `xiaohuhu-backup-${Date.now()}.json`;
+    link.download = filename;
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
+
+    BackupHistory.addRecord({
+      filename,
+      version: this.version,
+      size: `${Math.round(blob.size / 1024)} KB`
+    });
+
+    return filename;
   },
 
   validateBackup(backup) {
