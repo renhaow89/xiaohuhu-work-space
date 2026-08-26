@@ -1,5 +1,6 @@
 // Xiaohuhu Work Space Settings Panel
-// V1.0.8: 支持异步读取备份历史与优雅设置界面
+// 设置中心面板 — 温暖粉橙主题重构
+// 支持异步读取备份历史、数据一键导入导出、清空与测试入口
 
 import BackupManager from '../core/backup.js';
 import BackupHistory from '../core/backup-history.js';
@@ -21,18 +22,25 @@ export const SettingsPanel = {
         <span class="badge badge-info">v${AppVersion.version}</span>
       </div>
 
-      <div class="settings-actions">
-        <button id="export-backup" class="btn btn-primary">
-          💾 导出数据
-        </button>
+      <!-- 操作卡片 -->
+      <div class="form-card">
+        <div class="settings-actions">
+          <button id="export-backup" class="btn btn-primary">
+            💾 导出数据
+          </button>
 
-        <button id="import-backup" class="btn btn-secondary">
-          📂 导入备份
-        </button>
+          <button id="import-backup" class="btn btn-secondary">
+            📂 导入备份
+          </button>
 
-        <button id="clear-data" class="btn btn-danger">
-          🗑️ 清空数据
-        </button>
+          <a href="test.html" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+            🧪 自动化测试
+          </a>
+
+          <button id="clear-data" class="btn btn-danger">
+            🗑️ 清空全部数据
+          </button>
+        </div>
       </div>
 
       <input
@@ -42,19 +50,25 @@ export const SettingsPanel = {
         style="display:none"
       />
 
+      <!-- 历史备份区 -->
       <div class="backup-section">
         <h3>📋 最近备份记录</h3>
         <div id="backup-history" class="backup-list">
           ${history.length ? history.map(item => `
             <div class="backup-item">
-              <div class="backup-item-title">${item.filename || 'backup.json'}</div>
+              <div class="backup-item-title">${this.escapeHtml(item.filename || 'backup.json')}</div>
               <div class="backup-item-meta">
-                <span>${new Date(item.time).toLocaleString()}</span>
-                ${item.size ? `<span class="badge">${item.size}</span>` : ''}
+                <span>🕒 ${new Date(item.time).toLocaleString()}</span>
+                ${item.size ? `<span class="badge">${this.escapeHtml(item.size)}</span>` : ''}
                 ${item.schema ? `<span class="badge badge-schema">Schema v${item.schema}</span>` : ''}
               </div>
             </div>
-          `).join('') : '<p class="empty-state">暂无备份记录</p>'}
+          `).join('') : `
+            <div class="empty-state">
+              <div class="empty-icon">💾</div>
+              <p class="empty-text">暂无备份记录，建议定期导出备份～</p>
+            </div>
+          `}
         </div>
       </div>
 
@@ -97,5 +111,15 @@ export const SettingsPanel = {
         location.reload();
       }
     };
+  },
+
+  escapeHtml(str) {
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 };
+
+window.SettingsPanel = SettingsPanel;
