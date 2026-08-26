@@ -1,14 +1,14 @@
 import { TaskModule } from '../modules/task.js';
 
 export const TaskPanel = {
-  init(container) {
-    this.render(container);
+  async init(container) {
+    await this.render(container);
   },
 
-  render(container) {
+  async render(container) {
     if (!container) return;
 
-    const tasks = TaskModule.list();
+    const tasks = await TaskModule.list();
 
     container.innerHTML = `
       <h2>今日任务</h2>
@@ -29,19 +29,19 @@ export const TaskPanel = {
     });
 
     container.querySelectorAll('.completeBtn').forEach(button => {
-      button.onclick = () => {
-        TaskModule.complete(button.dataset.id);
-        this.render(container);
+      button.onclick = async () => {
+        await TaskModule.complete(button.dataset.id);
+        await this.render(container);
       };
     });
 
-    container.querySelector('#addTaskBtn').onclick = () => {
+    container.querySelector('#addTaskBtn').onclick = async () => {
       const input = container.querySelector('#taskInput');
       if (!input.value.trim()) return;
 
-      TaskModule.create(input.value.trim());
+      await TaskModule.create(input.value.trim());
       input.value = '';
-      this.render(container);
+      await this.render(container);
     };
   }
 };
