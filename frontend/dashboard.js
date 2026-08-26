@@ -2,8 +2,20 @@ const Dashboard = {
   init() {
     console.log('Dashboard initialized');
 
-    if (window.TaskPanel) {
-      TaskPanel.init();
+    const taskContainer = document.getElementById('task-panel');
+    const readingContainer = document.getElementById('reading-panel');
+    const researchContainer = document.getElementById('research-panel');
+
+    if (window.TaskPanel && taskContainer) {
+      TaskPanel.init(taskContainer);
+    }
+
+    if (window.ReadingPanel && readingContainer) {
+      ReadingPanel.init(readingContainer);
+    }
+
+    if (window.ResearchPanel && researchContainer) {
+      ResearchPanel.init(researchContainer);
     }
   }
 };
