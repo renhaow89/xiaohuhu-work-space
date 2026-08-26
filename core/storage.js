@@ -13,6 +13,14 @@ const Storage = {
 
   async remove(key) {
     localStorage.removeItem(key);
+  },
+
+  exportAll() {
+    const result = {};
+    Object.keys(localStorage).forEach((key) => {
+      result[key] = JSON.parse(localStorage.getItem(key));
+    });
+    return result;
   }
 };
 
