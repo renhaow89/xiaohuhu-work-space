@@ -5,31 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xiaohuhu Work Space - 自动化集成测试套件</title>
 <style>
+  :root {
+    --primary-color: #F4738A;
+    --primary-hover: #E05670;
+    --primary-gradient: linear-gradient(135deg, #F4738A 0%, #FF8E9E 100%);
+    --bg-gradient: linear-gradient(135deg, #FFF5F0 0%, #FFF0F5 100%);
+    --border-color: #FCE7EB;
+  }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
     margin: 0;
-    padding: 24px;
-    background: #f8fafc;
-    color: #1e293b;
+    padding: 32px 16px;
+    background: var(--bg-gradient);
+    color: #332427;
+    min-height: 100vh;
   }
   .test-container {
     max-width: 900px;
     margin: 0 auto;
-    background: #ffffff;
-    border-radius: 12px;
-    padding: 24px;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
-    border: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 4px 20px rgba(244, 115, 138, 0.08);
+    border: 1px solid var(--border-color);
   }
   .test-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #e2e8f0;
-    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 18px;
     margin-bottom: 20px;
   }
-  h1 { margin: 0; font-size: 22px; color: #0f172a; }
+  h1 { margin: 0; font-size: 22px; color: #332427; }
   .summary-bar {
     display: flex;
     gap: 16px;
@@ -38,70 +47,86 @@
   .stat-card {
     flex: 1;
     padding: 12px 16px;
-    border-radius: 8px;
+    border-radius: 12px;
     font-weight: 600;
     font-size: 14px;
     display: flex;
     justify-content: space-between;
+    border: 1px solid var(--border-color);
+    background: #ffffff;
   }
-  .stat-total { background: #f1f5f9; color: #475569; }
-  .stat-pass { background: #ecfdf5; color: #10b981; }
-  .stat-fail { background: #fef2f2; color: #ef4444; }
+  .stat-total { background: #FFF5F0; color: #8A7276; }
+  .stat-pass { background: #ECFDF5; color: #10B981; }
+  .stat-fail { background: #FEF2F2; color: #EF4444; }
   .btn-run {
-    background: #3b82f6;
+    background: var(--primary-gradient);
     color: white;
     border: none;
-    padding: 8px 18px;
-    border-radius: 6px;
+    padding: 8px 20px;
+    border-radius: 20px;
     cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(244, 115, 138, 0.3);
+    transition: all 0.2s ease;
   }
-  .btn-run:hover { background: #2563eb; }
+  .btn-run:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(244, 115, 138, 0.45);
+  }
   .test-suite {
     margin-bottom: 20px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
     overflow: hidden;
+    background: #ffffff;
   }
   .suite-title {
-    background: #f8fafc;
+    background: #FFF5F0;
     padding: 10px 16px;
     font-weight: 600;
     font-size: 14px;
-    border-bottom: 1px solid #e2e8f0;
-    color: #334155;
+    border-bottom: 1px solid var(--border-color);
+    color: #332427;
   }
   .test-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 10px 16px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid #FFF0F3;
     font-size: 13px;
   }
   .test-item:last-child { border-bottom: none; }
   .status-badge {
-    padding: 2px 8px;
+    padding: 3px 10px;
     border-radius: 9999px;
     font-size: 11px;
     font-weight: 600;
   }
-  .status-pass { background: #ecfdf5; color: #059669; }
-  .status-fail { background: #fef2f2; color: #dc2626; }
-  .status-running { background: #eff6ff; color: #2563eb; }
+  .status-pass { background: #ECFDF5; color: #059669; }
+  .status-fail { background: #FEF2F2; color: #DC2626; }
+  .status-running { background: #FFF0F3; color: #F4738A; }
   .error-msg {
-    color: #dc2626;
+    color: #DC2626;
     font-size: 12px;
     margin-top: 4px;
     font-family: monospace;
   }
   .back-link {
     display: inline-block;
-    margin-top: 16px;
-    color: #3b82f6;
+    margin-top: 20px;
+    color: var(--primary-color);
     text-decoration: none;
     font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: #FFF0F3;
+    transition: all 0.2s ease;
+  }
+  .back-link:hover {
+    background: #FFE4E8;
   }
 </style>
 </head>
@@ -110,7 +135,7 @@
   <div class="test-header">
     <div>
       <h1>🧪 Xiaohuhu Work Space 自动化测试套件</h1>
-      <p style="margin: 4px 0 0 0; color: #64748b; font-size: 12px;">验证 Core 数据层、版本管理、备份迁移与业务模块的完整性</p>
+      <p style="margin: 4px 0 0 0; color: #8A7276; font-size: 12px;">验证 Core 数据层、版本管理、备份迁移与业务模块的完整性</p>
     </div>
     <button id="runTestsBtn" class="btn-run">▶️ 重新运行全部测试</button>
   </div>
@@ -203,7 +228,7 @@ class TestRunner {
             <strong>${test.name}</strong>
             ${error ? `<div class="error-msg">❌ ${error.message}</div>` : ''}
           </div>
-          <span class="status-badge ${error ? 'status-fail' : 'status-pass'}">
+          <span class="status-badge ${error ? 'status-fail' : 'status-pass'}\">
             ${error ? 'FAIL' : 'PASS'} (${duration}ms)
           </span>
         `;
@@ -225,7 +250,7 @@ const runner = new TestRunner();
 runner.describe('Core / 版本管理与配置', () => {
   runner.it('AppVersion 应包含正确的 app, version 和 schema 属性', () => {
     runner.assertEqual(AppVersion.app, 'xiaohuhu-work-space', 'app name');
-    runner.assertEqual(AppVersion.version, '1.0.7', 'app version');
+    runner.assertEqual(AppVersion.version, '1.0.9', 'app version');
     runner.assertEqual(typeof AppVersion.schema, 'number', 'schema is number');
   });
 
@@ -276,8 +301,8 @@ runner.describe('Core / 备份与迁移 (Backup & Migration)', () => {
   });
 
   runner.it('BackupManager.validateBackup 应校验合法备份与拒绝非法文件', () => {
-    const valid = { app: 'xiaohuhu-work-space', version: '1.0.7', schema: 1, data: {} };
-    const invalidApp = { app: 'other-app', version: '1.0.7', data: {} };
+    const valid = { app: 'xiaohuhu-work-space', version: '1.0.9', schema: 1, data: {} };
+    const invalidApp = { app: 'other-app', version: '1.0.9', data: {} };
     runner.assert(BackupManager.validateBackup(valid), 'valid backup');
     runner.assert(!BackupManager.validateBackup(invalidApp), 'invalid app rejected');
   });
@@ -290,7 +315,7 @@ runner.describe('Core / 备份与迁移 (Backup & Migration)', () => {
   });
 
   runner.it('BackupHistory 记录添加与读取', async () => {
-    const record = { filename: 'test-backup.json', version: '1.0.7', schema: 1, size: '10 KB' };
+    const record = { filename: 'test-backup.json', version: '1.0.9', schema: 1, size: '10 KB' };
     const list = await BackupHistory.addRecord(record);
     runner.assert(list.length > 0, 'history has records');
     runner.assertEqual(list[0].filename, 'test-backup.json');
