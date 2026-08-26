@@ -1,6 +1,6 @@
 // Reading Panel
-// 阅读中心面板（文献、论文、书籍、笔记管理）
-// V1.0.8: 支持阅读状态切换、读书笔记、筛选及删除
+// 阅读中心面板（文献、论文、书籍、笔记管理）— 温暖粉橙主题重构
+// 支持阅读状态切换、读书笔记、筛选及删除
 
 import ReadingModule from '../modules/reading.js';
 
@@ -38,20 +38,36 @@ export const ReadingPanel = {
         </div>
       </div>
 
-      <div class="reading-form">
-        <input id="readingTitle" class="input-text" placeholder="书名 / 论文题目 / 文章链接..." />
-        <textarea id="readingNotes" class="input-textarea" rows="2" placeholder="核心观点或阅读笔记（选填）..."></textarea>
-        
-        <div class="reading-form-footer">
-          <select id="readingStatusSelect" class="select-input">
-            <option value="reading">📖 正在阅读</option>
-            <option value="unread">📌 计划阅读</option>
-            <option value="finished">✅ 已经读完</option>
-          </select>
-          <button id="addReadingBtn" class="btn btn-primary">保存文献</button>
+      <!-- 添加文献表单卡片 -->
+      <div class="form-card">
+        <div class="reading-form">
+          <input
+            id="readingTitle"
+            class="input-text"
+            placeholder="书名 / 论文题目 / 文章链接..."
+            autocomplete="off"
+          />
+          <textarea
+            id="readingNotes"
+            class="input-textarea"
+            rows="2"
+            placeholder="核心观点或阅读笔记（选填）..."
+          ></textarea>
+          
+          <div class="reading-form-footer">
+            <select id="readingStatusSelect" class="select-input">
+              <option value="reading">📖 正在阅读</option>
+              <option value="unread">📌 计划阅读</option>
+              <option value="finished">✅ 已经读完</option>
+            </select>
+            <button id="addReadingBtn" class="btn btn-primary">
+              📚 保存文献
+            </button>
+          </div>
         </div>
       </div>
 
+      <!-- 筛选标签栏 -->
       <div class="filter-tabs">
         <button class="filter-tab ${this.currentStatusFilter === 'all' ? 'active' : ''}" data-filter="all">全部 (${records.length})</button>
         <button class="filter-tab ${this.currentStatusFilter === 'reading' ? 'active' : ''}" data-filter="reading">在读 (${readingCount})</button>
@@ -59,12 +75,13 @@ export const ReadingPanel = {
         <button class="filter-tab ${this.currentStatusFilter === 'finished' ? 'active' : ''}" data-filter="finished">已读 (${finishedCount})</button>
       </div>
 
+      <!-- 阅读卡片列表 -->
       <div class="reading-list">
         ${filtered.length ? filtered.map(item => `
           <div class="reading-card">
             <div class="reading-card-header">
               <div class="reading-info">
-                <span class="badge ${item.status === 'finished' ? 'badge-success' : item.status === 'reading' ? 'badge-warning' : 'badge-secondary'}">
+                <span class="badge ${item.status === 'finished' ? 'badge-success' : item.status === 'reading' ? 'badge-warning' : 'badge-category'}">
                   ${item.status === 'finished' ? '✅ 已读完' : item.status === 'reading' ? '📖 在读' : '📌 想读'}
                 </span>
                 <strong class="reading-title">${this.escapeHtml(item.title)}</strong>
@@ -80,7 +97,12 @@ export const ReadingPanel = {
               </div>
             </div>
           </div>
-        `).join('') : '<p class="empty-state">暂无阅读记录</p>'}
+        `).join('') : `
+          <div class="empty-state">
+            <div class="empty-icon">📚</div>
+            <p class="empty-text">暂无阅读记录，挑一本好书开始吧～</p>
+          </div>
+        `}
       </div>
     `;
 
@@ -145,3 +167,5 @@ export const ReadingPanel = {
       .replace(/"/g, '&quot;');
   }
 };
+
+window.ReadingPanel = ReadingPanel;
