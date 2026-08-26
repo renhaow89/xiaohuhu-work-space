@@ -1,11 +1,380 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>Xiaohuhu Work Space</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xiaohuhu Work Space - 自动化集成测试套件</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 24px;
+    background: #f8fafc;
+    color: #1e293b;
+  }
+  .test-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
+    border: 1px solid #e2e8f0;
+  }
+  .test-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+  }
+  h1 { margin: 0; font-size: 22px; color: #0f172a; }
+  .summary-bar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    flex: 1;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .stat-total { background: #f1f5f9; color: #475569; }
+  .stat-pass { background: #ecfdf5; color: #10b981; }
+  .stat-fail { background: #fef2f2; color: #ef4444; }
+  .btn-run {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .btn-run:hover { background: #2563eb; }
+  .test-suite {
+    margin-bottom: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .suite-title {
+    background: #f8fafc;
+    padding: 10px 16px;
+    font-weight: 600;
+    font-size: 14px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+  }
+  .test-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+  }
+  .test-item:last-child { border-bottom: none; }
+  .status-badge {
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .status-pass { background: #ecfdf5; color: #059669; }
+  .status-fail { background: #fef2f2; color: #dc2626; }
+  .status-running { background: #eff6ff; color: #2563eb; }
+  .error-msg {
+    color: #dc2626;
+    font-size: 12px;
+    margin-top: 4px;
+    font-family: monospace;
+  }
+  .back-link {
+    display: inline-block;
+    margin-top: 16px;
+    color: #3b82f6;
+    text-decoration: none;
+    font-size: 13px;
+  }
+</style>
 </head>
 <body>
-<h1>Xiaohuhu Work Space</h1>
-<p>Frontend foundation test page.</p>
+<div class="test-container">
+  <div class="test-header">
+    <div>
+      <h1>🧪 Xiaohuhu Work Space 自动化测试套件</h1>
+      <p style="margin: 4px 0 0 0; color: #64748b; font-size: 12px;">验证 Core 数据层、版本管理、备份迁移与业务模块的完整性</p>
+    </div>
+    <button id="runTestsBtn" class="btn-run">▶️ 重新运行全部测试</button>
+  </div>
+
+  <div class="summary-bar">
+    <div class="stat-card stat-total"><span>总用例数</span><span id="totalCount">0</span></div>
+    <div class="stat-card stat-pass"><span>通过</span><span id="passCount">0</span></div>
+    <div class="stat-card stat-fail"><span>失败</span><span id="failCount">0</span></div>
+  </div>
+
+  <div id="testOutput"></div>
+
+  <a href="index.html" class="back-link">← 返回工作空间主页</a>
+</div>
+
+<script type="module">
+import AppVersion from '../core/version.js';
+import CONFIG from '../core/config.js';
+import Storage from '../core/storage.js';
+import DataAdapter from '../core/data-adapter.js';
+import Database from '../core/database.js';
+import BackupManager from '../core/backup.js';
+import BackupHistory from '../core/backup-history.js';
+import MigrationManager from '../core/migration.js';
+import SyncManager from '../core/sync-manager.js';
+import { TaskModule } from '../modules/task.js';
+import { JournalModule } from '../modules/journal.js';
+import ReadingModule from '../modules/reading.js';
+import ResearchModule from '../modules/research.js';
+
+class TestRunner {
+  constructor() {
+    this.suites = [];
+    this.total = 0;
+    this.passed = 0;
+    this.failed = 0;
+  }
+
+  describe(suiteName, fn) {
+    this.suites.push({ name: suiteName, fn, tests: [] });
+  }
+
+  it(testName, fn) {
+    this.currentSuite.tests.push({ name: testName, fn });
+  }
+
+  assert(condition, message = 'Assertion failed') {
+    if (!condition) throw new Error(message);
+  }
+
+  assertEqual(actual, expected, message = '') {
+    if (actual !== expected) {
+      throw new Error(`${message ? message + ': ' : ''}Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    }
+  }
+
+  async run() {
+    this.total = 0;
+    this.passed = 0;
+    this.failed = 0;
+    const output = document.getElementById('testOutput');
+    output.innerHTML = '';
+
+    for (const suite of this.suites) {
+      this.currentSuite = suite;
+      suite.fn();
+
+      const suiteEl = document.createElement('div');
+      suiteEl.className = 'test-suite';
+      suiteEl.innerHTML = `<div class="suite-title">📦 ${suite.name}</div>`;
+
+      for (const test of suite.tests) {
+        this.total++;
+        const testEl = document.createElement('div');
+        testEl.className = 'test-item';
+
+        const startTime = performance.now();
+        let error = null;
+        try {
+          await test.fn();
+          this.passed++;
+        } catch (e) {
+          this.failed++;
+          error = e;
+        }
+        const duration = Math.round(performance.now() - startTime);
+
+        testEl.innerHTML = `
+          <div>
+            <strong>${test.name}</strong>
+            ${error ? `<div class="error-msg">❌ ${error.message}</div>` : ''}
+          </div>
+          <span class="status-badge ${error ? 'status-fail' : 'status-pass'}">
+            ${error ? 'FAIL' : 'PASS'} (${duration}ms)
+          </span>
+        `;
+        suiteEl.appendChild(testEl);
+      }
+
+      output.appendChild(suiteEl);
+    }
+
+    document.getElementById('totalCount').textContent = this.total;
+    document.getElementById('passCount').textContent = this.passed;
+    document.getElementById('failCount').textContent = this.failed;
+  }
+}
+
+const runner = new TestRunner();
+
+// Suite 1: 版本与配置
+runner.describe('Core / 版本管理与配置', () => {
+  runner.it('AppVersion 应包含正确的 app, version 和 schema 属性', () => {
+    runner.assertEqual(AppVersion.app, 'xiaohuhu-work-space', 'app name');
+    runner.assertEqual(AppVersion.version, '1.0.7', 'app version');
+    runner.assertEqual(typeof AppVersion.schema, 'number', 'schema is number');
+  });
+
+  runner.it('CONFIG 应与 AppVersion 保持同步', () => {
+    runner.assertEqual(CONFIG.appName, AppVersion.app);
+    runner.assertEqual(CONFIG.version, AppVersion.version);
+    runner.assertEqual(CONFIG.schema, AppVersion.schema);
+  });
+});
+
+// Suite 2: 数据抽象层
+runner.describe('Core / 数据抽象层 (Storage → DataAdapter → Database)', () => {
+  const testKey = 'test_suite_key_' + Date.now();
+
+  runner.it('Database.set 与 Database.get 应正常读写数据', async () => {
+    const data = { message: 'hello world', timestamp: Date.now() };
+    await Database.set(testKey, data);
+    const retrieved = await Database.get(testKey);
+    runner.assertEqual(retrieved.message, data.message);
+  });
+
+  runner.it('Database.append 应支持数组列表追加', async () => {
+    const listKey = 'test_list_' + Date.now();
+    await Database.set(listKey, ['item1']);
+    await Database.append(listKey, 'item2');
+    const result = await Database.get(listKey);
+    runner.assertEqual(result.length, 2);
+    runner.assertEqual(result[1], 'item2');
+    await Database.remove(listKey);
+  });
+
+  runner.it('Database.remove 应能正确删除集合', async () => {
+    await Database.remove(testKey);
+    const deleted = await Database.get(testKey, null);
+    runner.assertEqual(deleted, null);
+  });
+});
+
+// Suite 3: 备份与迁移
+runner.describe('Core / 备份与迁移 (Backup & Migration)', () => {
+  runner.it('BackupManager.exportData 应生成包含 schema 的标准格式', async () => {
+    const backup = await BackupManager.exportData();
+    runner.assertEqual(backup.app, 'xiaohuhu-work-space');
+    runner.assertEqual(backup.version, AppVersion.version);
+    runner.assertEqual(backup.schema, AppVersion.schema);
+    runner.assert(typeof backup.created === 'string', 'has created timestamp');
+    runner.assert(typeof backup.data === 'object', 'has data object');
+  });
+
+  runner.it('BackupManager.validateBackup 应校验合法备份与拒绝非法文件', () => {
+    const valid = { app: 'xiaohuhu-work-space', version: '1.0.7', schema: 1, data: {} };
+    const invalidApp = { app: 'other-app', version: '1.0.7', data: {} };
+    runner.assert(BackupManager.validateBackup(valid), 'valid backup');
+    runner.assert(!BackupManager.validateBackup(invalidApp), 'invalid app rejected');
+  });
+
+  runner.it('MigrationManager.needsMigration 与 migrate 应正常运行', () => {
+    const currentBackup = { schema: 1, data: { test: 123 } };
+    runner.assert(!MigrationManager.needsMigration(currentBackup), 'schema 1 does not need migration');
+    const result = MigrationManager.migrate(currentBackup);
+    runner.assertEqual(result.schema, 1);
+  });
+
+  runner.it('BackupHistory 记录添加与读取', async () => {
+    const record = { filename: 'test-backup.json', version: '1.0.7', schema: 1, size: '10 KB' };
+    const list = await BackupHistory.addRecord(record);
+    runner.assert(list.length > 0, 'history has records');
+    runner.assertEqual(list[0].filename, 'test-backup.json');
+  });
+});
+
+// Suite 4: 同步管理器骨架
+runner.describe('Core / 同步管理器 (SyncManager)', () => {
+  runner.it('SyncManager 初始状态应为 disabled/idle', () => {
+    const status = SyncManager.getStatus();
+    runner.assertEqual(status.isEnabled, false);
+  });
+
+  runner.it('未启用云同步时 pushToCloud 应安全返回未启用提示', async () => {
+    const res = await SyncManager.pushToCloud({});
+    runner.assertEqual(res.success, false);
+  });
+});
+
+// Suite 5: 业务模块功能测试
+runner.describe('Modules / 业务模块 CRUD 测试', () => {
+  let taskId = null;
+  let journalId = null;
+  let readingId = null;
+  let researchId = null;
+
+  runner.it('TaskModule: 创建、完成与删除任务', async () => {
+    const task = await TaskModule.create('自动化测试任务');
+    taskId = task.id;
+    runner.assertEqual(task.status, 'todo');
+
+    const updated = await TaskModule.complete(taskId);
+    const target = updated.find(t => t.id === taskId);
+    runner.assertEqual(target.status, 'done');
+
+    await TaskModule.delete(taskId);
+    const listAfter = await TaskModule.list();
+    runner.assert(!listAfter.some(t => t.id === taskId), 'task deleted');
+  });
+
+  runner.it('JournalModule: 创建与删除工作日志', async () => {
+    const entry = await JournalModule.create({ content: '测试日志内容', date: '2026-08-26' });
+    journalId = entry.id;
+    runner.assertEqual(entry.content, '测试日志内容');
+
+    await JournalModule.delete(journalId);
+    const listAfter = await JournalModule.list();
+    runner.assert(!listAfter.some(j => j.id === journalId), 'journal deleted');
+  });
+
+  runner.it('ReadingModule: 创建、更新状态与删除文献', async () => {
+    const item = await ReadingModule.create('测试文献《Deep Learning》', '核心读书笔记');
+    readingId = item.id;
+    runner.assertEqual(item.title, '测试文献《Deep Learning》');
+
+    const updatedList = await ReadingModule.update(readingId, { status: 'finished' });
+    const target = updatedList.find(r => r.id === readingId);
+    runner.assertEqual(target.status, 'finished');
+
+    await ReadingModule.delete(readingId);
+    const listAfter = await ReadingModule.list();
+    runner.assert(!listAfter.some(r => r.id === readingId), 'reading deleted');
+  });
+
+  runner.it('ResearchModule: 创建、添加标签与删除科研记录', async () => {
+    const item = await ResearchModule.create('AI Transformer 实验', '实验参数设定 lr=1e-4');
+    researchId = item.id;
+
+    const updatedList = await ResearchModule.update(researchId, { tags: ['AI', 'NLP'] });
+    const target = updatedList.find(r => r.id === researchId);
+    runner.assertEqual(target.tags.length, 2);
+
+    await ResearchModule.delete(researchId);
+    const listAfter = await ResearchModule.list();
+    runner.assert(!listAfter.some(r => r.id === researchId), 'research deleted');
+  });
+});
+
+// 自动运行
+runner.run();
+
+document.getElementById('runTestsBtn').onclick = () => {
+  runner.run();
+};
+</script>
 </body>
 </html>
