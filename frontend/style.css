@@ -1592,7 +1592,7 @@ body {
 }
 
 /* ==========================================================================
-   移动端自适应 (<768px): 侧边栏隐藏并改为底部 TabBar
+   移动端自适应 (<768px): 菜单栏保留在左侧 (手账风格垂直紧凑侧边栏，参考图二)
    ========================================================================== */
 @media (max-width: 768px) {
   body {
@@ -1600,72 +1600,129 @@ body {
   }
 
   #app {
-    flex-direction: column;
+    flex-direction: row;
   }
 
-  /* 侧边栏转为底部固定 TabBar */
+  /* 左侧固定紧凑侧边栏 (62px) */
   .sidebar {
     position: fixed;
-    top: auto;
+    top: 0;
     bottom: 0;
     left: 0;
-    right: 0;
-    width: 100%;
-    height: 60px;
-    flex-direction: row;
-    justify-content: space-around;
-    padding: 4px 6px;
-    border-right: none;
-    border-top: 1px solid var(--border-color);
-    box-shadow: 0 -2px 10px rgba(244, 115, 138, 0.08);
-    background: rgba(255, 255, 255, 0.95);
+    width: 62px;
+    height: 100vh;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 12px 3px;
+    border-right: 1px solid var(--border-color);
+    border-top: none;
+    box-shadow: 2px 0 10px rgba(244, 115, 138, 0.05);
+    background: rgba(255, 255, 255, 0.92);
+    z-index: 100;
+    overflow-y: auto;
   }
 
   .sidebar-brand {
-    display: none;
+    display: flex;
+    margin-bottom: 12px;
+  }
+
+  .brand-icon {
+    font-size: 20px;
+  }
+
+  .brand-title {
+    display: none; /* 移动端隐藏品牌文字，只保留粉色樱花图标 */
   }
 
   .sidebar-nav {
-    flex-direction: row;
-    justify-content: space-around;
-    gap: 4px;
+    flex-direction: column;
+    gap: 6px;
     width: 100%;
   }
 
   .nav-item {
     padding: 6px 2px;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
+    width: 100%;
   }
 
   .nav-item .nav-icon {
-    font-size: 18px;
+    font-size: 16px;
     margin-bottom: 2px;
   }
 
   .nav-item .nav-label {
-    font-size: 10px;
+    font-size: 9.5px;
+    letter-spacing: -0.2px;
+    white-space: nowrap;
   }
 
-  /* 主内容区域去除左边距，增加底部安全边距 */
+  /* 右侧主内容区域 */
   .main-content {
-    margin-left: 0;
-    padding: 16px 16px 80px 16px;
+    margin-left: 62px;
+    width: calc(100% - 62px);
+    padding: 12px 10px 30px 10px;
+    min-height: 100vh;
   }
 
+  /* 顶部 Header 紧凑排版 */
   .header-container {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 14px 16px;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+  }
+
+  .header-left h1 {
+    font-size: 16px;
   }
 
   .header-right {
     width: 100%;
+    display: flex;
     justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .header-date {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .header-actions .btn-sm {
+    padding: 4px 8px;
+    font-size: 11px;
   }
 
   .panel {
-    padding: 16px;
+    padding: 12px 10px;
+  }
+
+  .today-focus-card {
+    padding: 14px 12px;
+    margin-bottom: 16px;
+  }
+
+  .today-focus-title {
+    font-size: 14px;
+  }
+
+  .task-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .task-form-card {
+    padding: 12px 10px;
   }
 
   .task-form-row {
@@ -1686,12 +1743,6 @@ body {
   .time-range-sep {
     text-align: center;
     margin: 2px 0;
-  }
-
-  .task-section-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
   }
 
   .today-focus-header {
