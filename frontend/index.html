@@ -15,11 +15,11 @@
   <link rel="apple-touch-icon" href="icons/icon-192.svg">
   <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
 
-  <link rel="stylesheet" href="style.css?v=1.1.0">
+  <link rel="stylesheet" href="style.css?v=1.2.1">
 </head>
 <body>
 <div id="app">
-  <!-- 左侧固定侧边栏 (110px) / 移动端 (<768px) 转为底部 TabBar -->
+  <!-- 左侧固定侧边栏 (110px 桌面端 / 62px 移动端紧凑手账侧边栏) -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand" id="brand-home" title="Xiaohuhu Work Space">
       <span class="brand-icon">🌸</span>
@@ -63,7 +63,7 @@
       </div>
 
       <div class="header-right">
-        <div class="header-date" id="current-date">2026年8月26日 星期三</div>
+        <div class="header-date" id="current-date">2026年8月27日 星期四</div>
         <div class="header-actions">
           <button id="header-export-btn" class="btn btn-secondary btn-sm" title="一键导出全部数据备份">
             💾 导出
@@ -90,6 +90,6 @@
 <!-- 全局导入文件选择器 -->
 <input id="global-backup-file-input" type="file" accept="application/json" style="display:none" />
 
-<script type="module" src="main.js?v=1.1.0"></script>
+<script type="module" src="main.js?v=1.2.1"></script>
 </body>
 </html>
