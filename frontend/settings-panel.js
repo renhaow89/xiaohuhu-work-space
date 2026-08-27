@@ -307,12 +307,14 @@ export const SettingsPanel = {
             feedback.className = 'auth-feedback-text text-success';
             if (!res.needEmailConfirm) {
               await this.render();
+              if (window.Dashboard?.refreshAllPanels) window.Dashboard.refreshAllPanels();
             }
           } else {
             await SyncManager.login(email, password);
             feedback.textContent = '✅ 登录成功！';
             feedback.className = 'auth-feedback-text text-success';
             await this.render();
+            if (window.Dashboard?.refreshAllPanels) window.Dashboard.refreshAllPanels();
           }
         } catch (err) {
           feedback.textContent = '❌ ' + err.message;
@@ -347,6 +349,9 @@ export const SettingsPanel = {
           const res = await SyncManager.sync();
           feedback.textContent = '✅ ' + res.message;
           feedback.className = 'sync-feedback-text text-success';
+          if (window.Dashboard?.refreshAllPanels) {
+            await window.Dashboard.refreshAllPanels();
+          }
           setTimeout(() => this.render(), 1200);
         } catch (err) {
           feedback.textContent = '❌ 同步失败: ' + err.message;
@@ -370,6 +375,9 @@ export const SettingsPanel = {
           await SyncManager.pushToCloud();
           feedback.textContent = '✅ 推送成功！';
           feedback.className = 'sync-feedback-text text-success';
+          if (window.Dashboard?.refreshAllPanels) {
+            await window.Dashboard.refreshAllPanels();
+          }
           setTimeout(() => this.render(), 1200);
         } catch (err) {
           feedback.textContent = '❌ 推送失败: ' + err.message;
@@ -396,6 +404,9 @@ export const SettingsPanel = {
           }
           feedback.textContent = '✅ 拉取成功并已更新本地！';
           feedback.className = 'sync-feedback-text text-success';
+          if (window.Dashboard?.refreshAllPanels) {
+            await window.Dashboard.refreshAllPanels();
+          }
           setTimeout(() => this.render(), 1200);
         } catch (err) {
           feedback.textContent = '❌ 拉取失败: ' + err.message;
