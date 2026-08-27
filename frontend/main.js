@@ -5,6 +5,28 @@ import './dashboard.js';
 import SyncManager from '../core/sync-manager.js';
 import Dashboard from './dashboard.js';
 
+// 全局一键深度清理离线缓存并强制更新版本（安全不删业务数据）
+window.clearAppCacheAndReload = async function () {
+  try {
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const reg of registrations) {
+        await reg.unregister();
+      }
+    }
+    if ('caches' in window) {
+      const cacheKeys = await caches.keys();
+      for (const key of cacheKeys) {
+        await caches.delete(key);
+      }
+    }
+    const targetUrl = window.location.origin + window.location.pathname + '?_t_reload=' + Date.now();
+    window.location.replace(targetUrl);
+  } catch (err) {
+    alert('清理缓存失败: ' + err.message);
+  }
+};
+
 // 应用启动时立即初始化同步引擎并开启后台秒级自动拉取
 (async () => {
   try {
