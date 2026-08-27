@@ -1,6 +1,6 @@
 // Xiaohuhu Work Space — 同步管理器 (SyncManager)
 // 负责基于 Supabase 的邮箱认证与多端数据双向增量同步
-// 包含：静默实时防抖自动同步、前后台切换自动拉取、JWT 自动续期与删除墓碑同步
+// 包含：4秒轻量心跳轮询实现秒级多端互通、实时防抖自动推送、前后台切换拉取与删除墓碑同步
 // 保持纯原生 ES Modules 零构建工具依赖
 
 import Database from './database.js';
@@ -35,6 +35,7 @@ export const SyncManager = {
   },
   _isInternalSyncing: false,
   _syncTimer: null,
+  _pollingTimer: null,
   _listenersAttached: false,
 
   /**
@@ -67,10 +68,76 @@ export const SyncManager = {
 
       this._attachAutoSyncListeners();
 
+      if (this.isEnabled) {
+        this.startAutoPolling(4000);
+      }
+
       console.log('[SyncManager] Initialized. Enabled:', this.isEnabled, 'User:', this.user ? this.user.email : 'None');
     } catch (e) {
       console.warn('[SyncManager] Init failed:', e);
       this.status = 'error';
+    }
+  },
+
+  /**
+   * 启动多端秒级实时轮询（每 4 秒检查一次云端时间戳，有变动自动拉取刷新）
+   * @param {number} intervalMs 轮询间隔（默认 4000ms）
+   */
+  startAutoPolling(intervalMs = 4000) {
+    if (this._pollingTimer) return;
+
+    this._pollingTimer = setInterval(async () => {
+      if (!this.isEnabled || !this.token || !this.user || this._isInternalSyncing) {
+        return;
+      }
+
+      // 如果页面完全在后台且文档隐藏，降低检查频率
+      if (typeof document !== 'undefined' && document.hidden) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=updated_at&_t=${Date.now()}`, {
+          method: 'GET',
+          headers: {
+            'apikey': this.config.supabaseAnonKey,
+            'Authorization': `Bearer ${this.token}`,
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          },
+          cache: 'no-store'
+        });
+
+        if (res.status === 401 && this.refreshToken) {
+          await this.refreshSession();
+          return;
+        }
+
+        if (res.ok) {
+          const rows = await res.json();
+          if (rows && rows.length > 0) {
+            const remoteUpdatedAt = rows[0].updated_at;
+            // 若云端更新时间比本地记录更新时间更新，则触发静默合并拉取！
+            if (remoteUpdatedAt && remoteUpdatedAt !== this.lastSyncTime) {
+              console.log('[SyncManager] Cloud updates detected via auto-polling. Merging...');
+              await this.sync();
+              if (window.Dashboard?.refreshAllPanels) {
+                await window.Dashboard.refreshAllPanels();
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // 心跳静默处理
+      }
+    }, intervalMs);
+  },
+
+  stopAutoPolling() {
+    if (this._pollingTimer) {
+      clearInterval(this._pollingTimer);
+      this._pollingTimer = null;
     }
   },
 
@@ -82,10 +149,10 @@ export const SyncManager = {
     if (this._listenersAttached) return;
     this._listenersAttached = true;
 
-    // 1. 当本地数据发生增删改时，自动防抖静默同步到云端
+    // 1. 当本地数据发生增删改时，300ms 快速防抖静默同步到云端
     EventBus.on('data:changed', ({ collection }) => {
       if (this.isEnabled && !this._isInternalSyncing && SYNCABLE_COLLECTIONS.has(collection)) {
-        this.debouncedSync(1200);
+        this.debouncedSync(300);
       }
     });
 
@@ -115,7 +182,7 @@ export const SyncManager = {
               window.Dashboard.refreshAllPanels();
             }
           } catch (err) {
-            // 静默失败
+            // 静默忽略
           }
         }
       });
@@ -126,7 +193,7 @@ export const SyncManager = {
    * 防抖静默同步（用于在用户写任务、打勾、删日志后自动同步，无需每次手动点击）
    * @param {number} delay 延迟毫秒数
    */
-  debouncedSync(delay = 1200) {
+  debouncedSync(delay = 300) {
     if (!this.isEnabled) return;
     if (this._syncTimer) clearTimeout(this._syncTimer);
 
@@ -183,6 +250,7 @@ export const SyncManager = {
 
     if (data.access_token && data.user) {
       await this._saveSession(data);
+      this.startAutoPolling(4000);
     }
 
     return {
@@ -218,6 +286,7 @@ export const SyncManager = {
     }
 
     await this._saveSession(data);
+    this.startAutoPolling(4000);
 
     try {
       await this.sync();
@@ -285,6 +354,7 @@ export const SyncManager = {
    * 退出登录
    */
   async logout() {
+    this.stopAutoPolling();
     this.user = null;
     this.token = null;
     this.refreshToken = null;
@@ -312,12 +382,13 @@ export const SyncManager = {
       await this._ensureValidToken();
 
       const backup = customData || await BackupManager.exportData();
+      const updatedTimestamp = new Date().toISOString();
       const payload = [{
         id: this.user.id,
         user_id: this.user.id,
         data: backup.data,
         schema: backup.schema || AppVersion.schema,
-        updated_at: new Date().toISOString()
+        updated_at: updatedTimestamp
       }];
 
       let res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data`, {
@@ -358,7 +429,7 @@ export const SyncManager = {
       }
 
       this.status = 'synced';
-      this.lastSyncTime = new Date().toISOString();
+      this.lastSyncTime = updatedTimestamp;
       await Database.set(SYNC_META_KEY, { lastSyncTime: this.lastSyncTime });
 
       return {
@@ -489,7 +560,7 @@ export const SyncManager = {
       const pushRes = await this.pushToCloud();
 
       this.status = 'synced';
-      this.lastSyncTime = new Date().toISOString();
+      this.lastSyncTime = pushRes.lastSyncTime || new Date().toISOString();
       await Database.set(SYNC_META_KEY, { lastSyncTime: this.lastSyncTime });
 
       return {
@@ -536,6 +607,7 @@ export const SyncManager = {
           if (!item || !item.id) continue;
           const delTs = mergedDeleted[item.id] ? new Date(mergedDeleted[item.id]).getTime() : 0;
           const itemTs = new Date(item.updatedAt || item.createdAt || 0).getTime();
+          // 若被删除且删除时间比修改时间新，则丢弃
           if (delTs > 0 && delTs >= itemTs) continue;
           itemMap.set(item.id, item);
         }
