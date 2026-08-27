@@ -1,7 +1,7 @@
 // Xiaohuhu Work Space — 同步管理器 (SyncManager)
 // 负责基于 Supabase 的邮箱认证与多端数据双向增量同步
 // 包含：轻量心跳检测、防抖自动推送、前后台切换拉取与删除墓碑同步
-// 保持纯原生 ES Modules 零构建工具依赖
+// 保持纯原生 ES Modules 零构建工具依赖与标准 Supabase CORS 兼容
 
 import Database from './database.js';
 import BackupManager from './backup.js';
@@ -103,11 +103,8 @@ export const SyncManager = {
           headers: {
             'apikey': this.config.supabaseAnonKey,
             'Authorization': `Bearer ${this.token}`,
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          },
-          cache: 'no-store'
+            'Content-Type': 'application/json'
+          }
         });
 
         if (res.status === 401 && this.refreshToken) {
@@ -405,11 +402,8 @@ export const SyncManager = {
           'apikey': this.config.supabaseAnonKey,
           'Authorization': `Bearer ${this.token}`,
           'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
+          'Prefer': 'resolution=merge-duplicates'
         },
-        cache: 'no-store',
         body: JSON.stringify(payload)
       });
 
@@ -422,11 +416,8 @@ export const SyncManager = {
             'apikey': this.config.supabaseAnonKey,
             'Authorization': `Bearer ${this.token}`,
             'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
+            'Prefer': 'resolution=merge-duplicates'
           },
-          cache: 'no-store',
           body: JSON.stringify(payload)
         });
       }
@@ -473,11 +464,8 @@ export const SyncManager = {
         headers: {
           'apikey': this.config.supabaseAnonKey,
           'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
-        cache: 'no-store'
+          'Content-Type': 'application/json'
+        }
       });
 
       if (res.status === 401 && this.refreshToken) {
@@ -488,11 +476,8 @@ export const SyncManager = {
           headers: {
             'apikey': this.config.supabaseAnonKey,
             'Authorization': `Bearer ${this.token}`,
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          },
-          cache: 'no-store'
+            'Content-Type': 'application/json'
+          }
         });
       }
 
