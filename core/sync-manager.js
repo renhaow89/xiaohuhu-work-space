@@ -91,13 +91,12 @@ export const SyncManager = {
         return;
       }
 
-      // 如果页面完全在后台且文档隐藏，降低检查频率
       if (typeof document !== 'undefined' && document.hidden) {
         return;
       }
 
       try {
-        const res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=updated_at&_t=${Date.now()}`, {
+        const res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=updated_at`, {
           method: 'GET',
           headers: {
             'apikey': this.config.supabaseAnonKey,
@@ -118,7 +117,6 @@ export const SyncManager = {
           const rows = await res.json();
           if (rows && rows.length > 0) {
             const remoteUpdatedAt = rows[0].updated_at;
-            // 若云端更新时间比本地记录更新时间更新，则触发静默合并拉取！
             if (remoteUpdatedAt && remoteUpdatedAt !== this.lastSyncTime) {
               console.log('[SyncManager] Cloud updates detected via auto-polling. Merging...');
               await this.sync();
@@ -460,7 +458,7 @@ export const SyncManager = {
     try {
       await this._ensureValidToken();
 
-      let res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*&_t=${Date.now()}`, {
+      let res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*`, {
         method: 'GET',
         headers: {
           'apikey': this.config.supabaseAnonKey,
@@ -475,7 +473,7 @@ export const SyncManager = {
       if (res.status === 401 && this.refreshToken) {
         console.log('[SyncManager] 401 Unauthorized received during pull, refreshing token...');
         await this.refreshSession();
-        res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*&_t=${Date.now()}`, {
+        res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*`, {
           method: 'GET',
           headers: {
             'apikey': this.config.supabaseAnonKey,
