@@ -10,7 +10,7 @@
 
 - **项目名称**：Xiaohuhu Work Space（小呼呼个人数字工作空间）
 - **核心定位**：脱离第三方商业平台依赖、数据完全自主掌控的长期个人数字工作台（日常任务、科研记录、文献阅读、工作日志、多端同步）。
-- **当前版本**：`1.2.0`（Schema: `1`）
+- **当前版本**：`1.2.1`（Schema: `1`）
 - **代码仓库**：`renhaow89/xiaohuhu-work-space`（主分支：`main`）
 - **线上部署地址**：
   * 🌍 国内直连（GitHub Pages）：`https://renhaow89.github.io/xiaohuhu-work-space/`
@@ -74,8 +74,8 @@ xiaohuhu-work-space/
 │   └── finance.js                # 财务记账骨架
 │
 ├── frontend/                     # 用户界面与交互层 (Presentation Layer)
-│   ├── index.html                # 主工作台 SPA 骨架（左侧 110px 侧边栏/底部 TabBar）
-│   ├── style.css                 # 温暖粉橙设计系统、圆角阴影、移动端响应式
+│   ├── index.html                # 主工作台 SPA 骨架（110px 桌面 / 62px 移动端左侧侧边栏）
+│   ├── style.css                 # 温暖粉橙设计系统、圆角阴影、移动端左侧紧凑手账排版
 │   ├── main.js                   # 前端启动引导器，注册 PWA Service Worker
 │   ├── dashboard.js              # 单面板导航切换控制器、顶部动态中文日期
 │   ├── task-panel.js             # 任务面板 UI（置顶卡片、双日期时间选择、Toast 提醒）
@@ -200,7 +200,7 @@ WITH CHECK (auth.uid() = user_id);
 
 所有样式集中在 `frontend/style.css`，遵循温暖粉橙手账美学：
 
-| CSS 变量名 | 值 / 含义 |
+| CSS 变量名 / 属性 | 值 / 含义 |
 | :--- | :--- |
 | `--primary-color` | `#F4738A`（主品牌温暖粉） |
 | `--primary-hover` | `#E05670`（悬停深粉） |
@@ -210,7 +210,8 @@ WITH CHECK (auth.uid() = user_id);
 | `--radius-pill` | `20px`（所有主按钮与徽标胶囊圆角） |
 | `--radius-lg` | `14px`（内容卡片与面板圆角） |
 | `--shadow-soft` | `0 4px 20px rgba(244, 115, 138, 0.08)` |
-| 移动端断点 | `@media (max-width: 768px)`（侧边栏自动转为底部固定 60px TabBar） |
+| 桌面端侧边栏 | 固定宽度 `110px` |
+| 移动端自适应 (`<768px`) | **左侧垂直紧凑侧边栏（`62px` 宽度）**，图标与文字紧凑居中，右侧主内容区自适应排列 |
 
 ---
 
