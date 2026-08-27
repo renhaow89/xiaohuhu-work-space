@@ -1,8 +1,9 @@
 // Xiaohuhu Work Space — Service Worker
-// 版本：v1.1.0
+// 版本：v1.2.6
 // 负责离线资源缓存、秒开加速与断网降级
+// 严禁缓存任何 Supabase / REST API 请求，确保多端实时数据绝对新鲜
 
-const CACHE_NAME = 'xiaohuhu-v1.1.0';
+const CACHE_NAME = 'xiaohuhu-v1.2.6';
 
 // 核心静态资源离线缓存清单
 const ASSETS_TO_CACHE = [
@@ -43,13 +44,13 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[ServiceWorker] Pre-caching offline assets');
+      console.log('[ServiceWorker] Pre-caching offline assets for', CACHE_NAME);
       return cache.addAll(ASSETS_TO_CACHE);
     }).then(() => self.skipWaiting())
   );
 });
 
-// 激活阶段：清理旧版本缓存
+// 激活阶段：清理旧版本缓存并立即生效
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -65,12 +66,21 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 请求拦截阶段：Stale-While-Revalidate + Cache-First 离线保障策略
+// 请求拦截阶段：只对同源静态前端文件实行缓存，API 请求一律直连网络
 self.addEventListener('fetch', (event) => {
   const request = event.request;
 
-  // 忽略非 GET 请求或浏览器扩展请求
   if (request.method !== 'GET' || !request.url.startsWith('http')) {
+    return;
+  }
+
+  const url = new URL(request.url);
+
+  // 关键规则：只缓存本站同源的静态前端文件，绝不拦截/缓存 Supabase、API 或第三方请求
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+  if (url.pathname.includes('/auth/v1') || url.pathname.includes('/rest/v1') || url.hostname.includes('supabase.co')) {
     return;
   }
 
@@ -86,7 +96,6 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch((err) => {
-        // 网络断开时的安全忽略
         console.log('[ServiceWorker] Offline mode, served from cache:', request.url);
       });
 
