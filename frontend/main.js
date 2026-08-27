@@ -8,9 +8,18 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
       .then((reg) => {
         console.log('[PWA] ServiceWorker registered successfully with scope:', reg.scope);
+        // 主动检查并更新 ServiceWorker
+        if (reg.update) {
+          reg.update();
+        }
       })
       .catch((err) => {
         console.warn('[PWA] ServiceWorker registration failed:', err);
       });
+  });
+
+  // 监听 ServiceWorker 控制权转移（新版本激活）
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    console.log('[PWA] New version activated.');
   });
 }
