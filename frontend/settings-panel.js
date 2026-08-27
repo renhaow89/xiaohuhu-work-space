@@ -1,5 +1,5 @@
 // Xiaohuhu Work Space Settings Panel
-// 设置中心面板 — 包含多端云同步 (Supabase 邮箱登录/注册)、内置保姆级配置手册、备份管理与数据清空
+// 设置中心面板 — 包含多端云同步 (Supabase 邮箱登录/注册)、内置保姆级配置手册、一键深度清理缓存、备份管理与数据清空
 
 import BackupManager from '../core/backup.js';
 import BackupHistory from '../core/backup-history.js';
@@ -25,7 +25,12 @@ export const SettingsPanel = {
     this.container.innerHTML = `
       <div class="panel-header">
         <h2>⚙️ 设置中心</h2>
-        <span class="badge badge-info">v${AppVersion.version}</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="badge badge-info">v${AppVersion.version}</span>
+          <button id="quick-clear-cache-btn" class="btn btn-secondary btn-sm" title="一键清理网页缓存并强制更新到最新版本">
+            🧹 清理缓存并更新
+          </button>
+        </div>
       </div>
 
       <!-- ☁️ 多端云同步卡片 (Supabase 邮箱同步) -->
@@ -165,9 +170,9 @@ export const SettingsPanel = {
         </div>
       </div>
 
-      <!-- 数据备份与迁移操作卡片 -->
+      <!-- 数据与系统维护操作卡片 -->
       <div class="form-card">
-        <h3 style="font-size: 14px; margin: 0 0 12px 0;">💾 本地数据与备份操作</h3>
+        <h3 style="font-size: 14px; margin: 0 0 12px 0;">🛠️ 数据管理与缓存维护</h3>
         <div class="settings-actions">
           <button id="export-backup" class="btn btn-primary">
             💾 导出全量备份 (JSON)
@@ -175,6 +180,10 @@ export const SettingsPanel = {
 
           <button id="import-backup" class="btn btn-secondary">
             📂 导入数据备份
+          </button>
+
+          <button id="clear-cache-btn" class="btn btn-secondary" style="border-color: var(--primary-color); color: var(--primary-color);" title="清理浏览器 Service Worker 离线缓存并强制重载到最新版本（不影响您的数据）">
+            🧹 深度清理缓存并强制更新
           </button>
 
           <a href="test.html" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
@@ -217,7 +226,7 @@ export const SettingsPanel = {
       </div>
 
       <div class="version-footer">
-        <p>应用标识：<code>${AppVersion.app}</code> | 版本：<code>${AppVersion.version}</code> | Schema：<code>${AppVersion.schema}</code></p>
+        <p>应用标识：<code>${AppVersion.app}</code> | 当前版本：<code>${AppVersion.version}</code> | Schema：<code>${AppVersion.schema}</code></p>
       </div>
     `;
 
@@ -226,6 +235,43 @@ export const SettingsPanel = {
 
   bindEvents() {
     const container = this.container;
+
+    // 0. 深度清理缓存并强制重载功能（解决无论怎么刷新版本都不更新的问题）
+    const handleClearCache = async (btn) => {
+      if (confirm('🧹 是否深度清理浏览器旧版本缓存并强制拉取最新版本？\n\n✅ 您的任务、日志和 Supabase 云端账号数据绝对不会受到任何影响。')) {
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = '⏳ 正在清理缓存...';
+        }
+        try {
+          // ① 注销当前所有 Service Worker
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const reg of registrations) {
+              await reg.unregister();
+            }
+          }
+          // ② 清空 CacheStorage 静态离线缓存
+          if ('caches' in window) {
+            const cacheKeys = await caches.keys();
+            for (const key of cacheKeys) {
+              await caches.delete(key);
+            }
+          }
+          // ③ 附带毫秒时间戳强制硬重载
+          const targetUrl = window.location.origin + window.location.pathname + '?_t_reload=' + Date.now();
+          window.location.replace(targetUrl);
+        } catch (err) {
+          alert('清理缓存失败: ' + err.message);
+          if (btn) btn.disabled = false;
+        }
+      }
+    };
+
+    const clearCacheBtn = container.querySelector('#clear-cache-btn');
+    const quickClearCacheBtn = container.querySelector('#quick-clear-cache-btn');
+    if (clearCacheBtn) clearCacheBtn.onclick = () => handleClearCache(clearCacheBtn);
+    if (quickClearCacheBtn) quickClearCacheBtn.onclick = () => handleClearCache(quickClearCacheBtn);
 
     // 1. 配置保存
     const saveCfgBtn = container.querySelector('#saveConfigBtn');
