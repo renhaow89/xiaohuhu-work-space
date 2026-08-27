@@ -219,7 +219,6 @@ export const SyncManager = {
 
     await this._saveSession(data);
 
-    // 登录后自动触发一次双向智能同步
     try {
       await this.sync();
     } catch (err) {
@@ -327,8 +326,11 @@ export const SyncManager = {
           'apikey': this.config.supabaseAnonKey,
           'Authorization': `Bearer ${this.token}`,
           'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates'
+          'Prefer': 'resolution=merge-duplicates',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         },
+        cache: 'no-store',
         body: JSON.stringify(payload)
       });
 
@@ -341,8 +343,11 @@ export const SyncManager = {
             'apikey': this.config.supabaseAnonKey,
             'Authorization': `Bearer ${this.token}`,
             'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates'
+            'Prefer': 'resolution=merge-duplicates',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
           },
+          cache: 'no-store',
           body: JSON.stringify(payload)
         });
       }
@@ -384,25 +389,31 @@ export const SyncManager = {
     try {
       await this._ensureValidToken();
 
-      let res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*`, {
+      let res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*&_t=${Date.now()}`, {
         method: 'GET',
         headers: {
           'apikey': this.config.supabaseAnonKey,
           'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        },
+        cache: 'no-store'
       });
 
       if (res.status === 401 && this.refreshToken) {
         console.log('[SyncManager] 401 Unauthorized received during pull, refreshing token...');
         await this.refreshSession();
-        res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*`, {
+        res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*&_t=${Date.now()}`, {
           method: 'GET',
           headers: {
             'apikey': this.config.supabaseAnonKey,
             'Authorization': `Bearer ${this.token}`,
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          },
+          cache: 'no-store'
         });
       }
 
@@ -525,7 +536,6 @@ export const SyncManager = {
           if (!item || !item.id) continue;
           const delTs = mergedDeleted[item.id] ? new Date(mergedDeleted[item.id]).getTime() : 0;
           const itemTs = new Date(item.updatedAt || item.createdAt || 0).getTime();
-          // 若被删除且删除时间比修改时间新，则丢弃
           if (delTs > 0 && delTs >= itemTs) continue;
           itemMap.set(item.id, item);
         }
