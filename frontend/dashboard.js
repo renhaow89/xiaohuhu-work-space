@@ -197,7 +197,7 @@ export const Dashboard = {
       try {
         history.replaceState(null, '', `#${panelId}`);
       } catch (e) {
-        window.location.hash = `#${panelId}` exercise;
+        window.location.hash = `#${panelId}`;
       }
     }
   },
