@@ -1,7 +1,7 @@
 // Xiaohuhu Work Space — 同步管理器 (SyncManager)
 // 负责基于 Supabase 的邮箱认证与多端数据双向增量同步
-// 包含：轻量心跳检测、防抖自动推送、前后台切换拉取与删除墓碑同步
-// 保持纯原生 ES Modules 零构建工具依赖与标准 Supabase CORS 兼容
+// 包含：轻量心跳检测、防抖自动推送、前后台切换拉取、URL智能格式化与高容错网络通信
+// 保持纯原生 ES Modules 零构建工具依赖
 
 import Database from './database.js';
 import BackupManager from './backup.js';
@@ -28,7 +28,7 @@ export const SyncManager = {
   token: null,
   refreshToken: null,
   expiresAt: 0,
-  lastSyncTime: 0, // 保存为毫秒时间戳数字，避免字符串格式比对产生死循环
+  lastSyncTime: 0,
   config: {
     supabaseUrl: '',
     supabaseAnonKey: ''
@@ -37,6 +37,19 @@ export const SyncManager = {
   _syncTimer: null,
   _pollingTimer: null,
   _listenersAttached: false,
+
+  /**
+   * 获取规范化后的 Supabase URL（自动补全 https:// 并去除尾部斜杠）
+   * @private
+   */
+  _getNormalizedUrl() {
+    let url = (this.config.supabaseUrl || '').trim();
+    if (!url) return '';
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    return url.replace(/\/+$/, '');
+  },
 
   /**
    * 初始化同步管理器：读取本地配置与认证信息并绑定自动同步监听器
@@ -89,7 +102,8 @@ export const SyncManager = {
     if (this._pollingTimer) return;
 
     this._pollingTimer = setInterval(async () => {
-      if (!this.isEnabled || !this.token || !this.user || this._isInternalSyncing) {
+      const baseUrl = this._getNormalizedUrl();
+      if (!this.isEnabled || !this.token || !this.user || !baseUrl || this._isInternalSyncing) {
         return;
       }
 
@@ -98,7 +112,7 @@ export const SyncManager = {
       }
 
       try {
-        const res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=updated_at`, {
+        const res = await fetch(`${baseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=updated_at`, {
           method: 'GET',
           headers: {
             'apikey': this.config.supabaseAnonKey,
@@ -108,7 +122,7 @@ export const SyncManager = {
         });
 
         if (res.status === 401 && this.refreshToken) {
-          await this.refreshSession();
+          await this.refreshSession().catch(() => {});
           return;
         }
 
@@ -121,7 +135,7 @@ export const SyncManager = {
               ? this.lastSyncTime
               : new Date(this.lastSyncTime || 0).getTime();
 
-            // 只有当远端时间戳严格大于本地最后同步时间 2 秒以上时，才说明有另一台设备写入了新内容！
+            // 只有当远端时间戳严格大于本地最后同步时间 2 秒以上时，才拉取！
             if (remoteTs > localTs + 2000) {
               console.log('[SyncManager] Remote changes detected from another device. Pulling...');
               this.lastSyncTime = remoteTs;
@@ -220,8 +234,14 @@ export const SyncManager = {
    * @param {string} key Supabase Anon Key
    */
   async saveConfig(url, key) {
+    let cleanUrl = (url || '').trim();
+    if (cleanUrl && !cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+      cleanUrl = 'https://' + cleanUrl;
+    }
+    cleanUrl = cleanUrl.replace(/\/+$/, '');
+
     this.config = {
-      supabaseUrl: (url || '').trim().replace(/\/+$/, ''),
+      supabaseUrl: cleanUrl,
       supabaseAnonKey: (key || '').trim()
     };
     await Database.set(CONFIG_KEY, this.config);
@@ -233,35 +253,43 @@ export const SyncManager = {
    * @param {string} password
    */
   async signup(email, password) {
-    if (!this.config.supabaseUrl || !this.config.supabaseAnonKey) {
+    const baseUrl = this._getNormalizedUrl();
+    if (!baseUrl || !this.config.supabaseAnonKey) {
       throw new Error('请先配置 Supabase Project URL 与 Anon Key');
     }
 
-    const res = await fetch(`${this.config.supabaseUrl}/auth/v1/signup`, {
-      method: 'POST',
-      headers: {
-        'apikey': this.config.supabaseAnonKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email, password })
-    });
+    try {
+      const res = await fetch(`${baseUrl}/auth/v1/signup`, {
+        method: 'POST',
+        headers: {
+          'apikey': this.config.supabaseAnonKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      });
 
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.msg || data.error_description || data.message || '注册失败');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.msg || data.error_description || data.message || '注册失败');
+      }
+
+      if (data.access_token && data.user) {
+        await this._saveSession(data);
+        this.startAutoPolling(5000);
+      }
+
+      return {
+        success: true,
+        user: data.user,
+        needEmailConfirm: !data.access_token,
+        message: data.access_token ? '注册成功并已自动登录' : '注册成功！请查收验证邮件（若无需验证可直接登录）'
+      };
+    } catch (err) {
+      if (err.message === 'Failed to fetch') {
+        throw new Error('网络连接失败，请检查 URL 是否正确或网络是否畅通');
+      }
+      throw err;
     }
-
-    if (data.access_token && data.user) {
-      await this._saveSession(data);
-      this.startAutoPolling(5000);
-    }
-
-    return {
-      success: true,
-      user: data.user,
-      needEmailConfirm: !data.access_token,
-      message: data.access_token ? '注册成功并已自动登录' : '注册成功！请查收验证邮件（若无需验证可直接登录）'
-    };
   },
 
   /**
@@ -270,50 +298,59 @@ export const SyncManager = {
    * @param {string} password
    */
   async login(email, password) {
-    if (!this.config.supabaseUrl || !this.config.supabaseAnonKey) {
+    const baseUrl = this._getNormalizedUrl();
+    if (!baseUrl || !this.config.supabaseAnonKey) {
       throw new Error('请先配置 Supabase Project URL 与 Anon Key');
     }
 
-    const res = await fetch(`${this.config.supabaseUrl}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
-      headers: {
-        'apikey': this.config.supabaseAnonKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email, password })
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error_description || data.message || '登录失败，请检查账号密码');
-    }
-
-    await this._saveSession(data);
-    this.startAutoPolling(5000);
-
     try {
-      await this.sync();
-    } catch (err) {
-      console.warn('[SyncManager] Auto sync after login failed:', err);
-    }
+      const res = await fetch(`${baseUrl}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: {
+          'apikey': this.config.supabaseAnonKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      });
 
-    return {
-      success: true,
-      user: this.user,
-      message: '登录成功'
-    };
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error_description || data.message || '登录失败，请检查账号密码');
+      }
+
+      await this._saveSession(data);
+      this.startAutoPolling(5000);
+
+      try {
+        await this.sync();
+      } catch (err) {
+        console.warn('[SyncManager] Auto sync after login failed:', err);
+      }
+
+      return {
+        success: true,
+        user: this.user,
+        message: '登录成功'
+      };
+    } catch (err) {
+      if (err.message === 'Failed to fetch') {
+        throw new Error('网络连接失败，请检查 URL 是否正确或网络是否畅通');
+      }
+      throw err;
+    }
   },
 
   /**
    * 自动使用 refresh_token 换取新的 access_token
    */
   async refreshSession() {
-    if (!this.refreshToken || !this.config.supabaseUrl || !this.config.supabaseAnonKey) {
+    const baseUrl = this._getNormalizedUrl();
+    if (!this.refreshToken || !baseUrl || !this.config.supabaseAnonKey) {
       throw new Error('登录态已失效，请重新登录');
     }
 
     try {
-      const res = await fetch(`${this.config.supabaseUrl}/auth/v1/token?grant_type=refresh_token`, {
+      const res = await fetch(`${baseUrl}/auth/v1/token?grant_type=refresh_token`, {
         method: 'POST',
         headers: {
           'apikey': this.config.supabaseAnonKey,
@@ -322,9 +359,10 @@ export const SyncManager = {
         body: JSON.stringify({ refresh_token: this.refreshToken })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.error_description || data.message || 'Token 刷新失败');
+        await this.logout();
+        throw new Error(data.error_description || data.message || '登录态已过期，请重新登录');
       }
 
       await this._saveSession(data);
@@ -332,8 +370,7 @@ export const SyncManager = {
       return true;
     } catch (err) {
       console.warn('[SyncManager] Token refresh failed:', err);
-      await this.logout();
-      throw new Error('登录态已过期，请重新登录');
+      throw err;
     }
   },
 
@@ -343,12 +380,15 @@ export const SyncManager = {
    */
   async _ensureValidToken() {
     if (!this.token) {
-      throw new Error('未登录或未启用云同步');
+      throw new Error('未登录或未启用云同步，请在设置中登录');
     }
     if (this.expiresAt && Date.now() > this.expiresAt - 60000) {
       if (this.refreshToken) {
-        console.log('[SyncManager] Token expired or expiring, refreshing silently...');
-        await this.refreshSession();
+        try {
+          await this.refreshSession();
+        } catch (e) {
+          console.warn('[SyncManager] Proactive token refresh failed, will attempt with existing token:', e);
+        }
       }
     }
   },
@@ -379,6 +419,11 @@ export const SyncManager = {
       };
     }
 
+    const baseUrl = this._getNormalizedUrl();
+    if (!baseUrl || !this.config.supabaseAnonKey) {
+      throw new Error('Supabase URL 或 Key 未配置');
+    }
+
     this.status = 'syncing';
 
     try {
@@ -396,7 +441,7 @@ export const SyncManager = {
         updated_at: updatedTimestamp
       }];
 
-      let res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data`, {
+      let res = await fetch(`${baseUrl}/rest/v1/user_workspace_data`, {
         method: 'POST',
         headers: {
           'apikey': this.config.supabaseAnonKey,
@@ -408,9 +453,9 @@ export const SyncManager = {
       });
 
       if (res.status === 401 && this.refreshToken) {
-        console.log('[SyncManager] 401 Unauthorized received, refreshing token and retrying...');
+        console.log('[SyncManager] 401 received, refreshing session...');
         await this.refreshSession();
-        res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data`, {
+        res = await fetch(`${baseUrl}/rest/v1/user_workspace_data`, {
           method: 'POST',
           headers: {
             'apikey': this.config.supabaseAnonKey,
@@ -424,7 +469,7 @@ export const SyncManager = {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || errJson.hint || `推送失败 (${res.status})`);
+        throw new Error(errJson.message || errJson.hint || `推送失败 (HTTP ${res.status})`);
       }
 
       this.status = 'synced';
@@ -439,6 +484,9 @@ export const SyncManager = {
     } catch (error) {
       this.status = 'error';
       console.error('[SyncManager] pushToCloud error:', error);
+      if (error.message === 'Failed to fetch') {
+        throw new Error('无法连接到 Supabase，请检查网络或 Project URL 是否正确');
+      }
       throw error;
     }
   },
@@ -454,12 +502,17 @@ export const SyncManager = {
       };
     }
 
+    const baseUrl = this._getNormalizedUrl();
+    if (!baseUrl || !this.config.supabaseAnonKey) {
+      throw new Error('Supabase URL 或 Key 未配置');
+    }
+
     this.status = 'syncing';
 
     try {
       await this._ensureValidToken();
 
-      let res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*`, {
+      let res = await fetch(`${baseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*`, {
         method: 'GET',
         headers: {
           'apikey': this.config.supabaseAnonKey,
@@ -469,9 +522,8 @@ export const SyncManager = {
       });
 
       if (res.status === 401 && this.refreshToken) {
-        console.log('[SyncManager] 401 Unauthorized received during pull, refreshing token...');
         await this.refreshSession();
-        res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*`, {
+        res = await fetch(`${baseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*`, {
           method: 'GET',
           headers: {
             'apikey': this.config.supabaseAnonKey,
@@ -483,7 +535,7 @@ export const SyncManager = {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || `拉取失败 (${res.status})`);
+        throw new Error(errJson.message || `拉取失败 (HTTP ${res.status})`);
       }
 
       const rows = await res.json();
@@ -510,6 +562,9 @@ export const SyncManager = {
     } catch (error) {
       this.status = 'error';
       console.error('[SyncManager] pullFromCloud error:', error);
+      if (error.message === 'Failed to fetch') {
+        throw new Error('无法连接到 Supabase，请检查网络或 Project URL 是否正确');
+      }
       throw error;
     }
   },
