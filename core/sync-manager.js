@@ -1,5 +1,6 @@
 // Xiaohuhu Work Space — 同步管理器 (SyncManager)
 // 负责基于 Supabase 的邮箱认证与多端数据双向增量同步
+// 包含自动 JWT Token 刷新 (Auto Refresh on Expiry) 与透明重试机制
 // 保持纯原生 ES Modules 零构建工具依赖
 
 import Database from './database.js';
@@ -15,6 +16,8 @@ export const SyncManager = {
   isEnabled: false,
   user: null,
   token: null,
+  refreshToken: null,
+  expiresAt: 0,
   lastSyncTime: null,
   config: {
     supabaseUrl: '',
@@ -34,6 +37,8 @@ export const SyncManager = {
       const savedAuth = await Database.get(AUTH_KEY, null);
       if (savedAuth && savedAuth.token && savedAuth.user) {
         this.token = savedAuth.token;
+        this.refreshToken = savedAuth.refreshToken || null;
+        this.expiresAt = savedAuth.expiresAt || 0;
         this.user = savedAuth.user;
         this.isEnabled = true;
         this.status = 'idle';
@@ -145,11 +150,63 @@ export const SyncManager = {
   },
 
   /**
+   * 自动使用 refresh_token 换取新的 access_token
+   */
+  async refreshSession() {
+    if (!this.refreshToken || !this.config.supabaseUrl || !this.config.supabaseAnonKey) {
+      throw new Error('登录态已失效，请重新登录');
+    }
+
+    try {
+      const res = await fetch(`${this.config.supabaseUrl}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: {
+          'apikey': this.config.supabaseAnonKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ refresh_token: this.refreshToken })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error_description || data.message || 'Token 刷新失败');
+      }
+
+      await this._saveSession(data);
+      console.log('[SyncManager] Token refreshed successfully');
+      return true;
+    } catch (err) {
+      console.warn('[SyncManager] Token refresh failed:', err);
+      await this.logout();
+      throw new Error('登录态已过期，请重新登录');
+    }
+  },
+
+  /**
+   * 检查并在 Token 即将过期前自动刷新
+   * @private
+   */
+  async _ensureValidToken() {
+    if (!this.token) {
+      throw new Error('未登录或未启用云同步');
+    }
+    // 若在 1 分钟内过期或已过期，主动发起静默刷新
+    if (this.expiresAt && Date.now() > this.expiresAt - 60000) {
+      if (this.refreshToken) {
+        console.log('[SyncManager] Token expired or expiring, refreshing silently...');
+        await this.refreshSession();
+      }
+    }
+  },
+
+  /**
    * 退出登录
    */
   async logout() {
     this.user = null;
     this.token = null;
+    this.refreshToken = null;
+    this.expiresAt = 0;
     this.isEnabled = false;
     this.status = 'disabled';
     await Database.remove(AUTH_KEY);
@@ -157,7 +214,7 @@ export const SyncManager = {
   },
 
   /**
-   * 将本地全量数据打包推送到 Supabase 云端
+   * 将本地全量数据打包推送到 Supabase 云端（含 401 JWT 过期自动重试）
    */
   async pushToCloud(customData = null) {
     if (!this.isEnabled || !this.token || !this.user) {
@@ -170,6 +227,8 @@ export const SyncManager = {
     this.status = 'syncing';
 
     try {
+      await this._ensureValidToken();
+
       const backup = customData || await BackupManager.exportData();
       const payload = [{
         id: this.user.id,
@@ -179,7 +238,7 @@ export const SyncManager = {
         updated_at: new Date().toISOString()
       }];
 
-      const res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data`, {
+      let res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data`, {
         method: 'POST',
         headers: {
           'apikey': this.config.supabaseAnonKey,
@@ -189,6 +248,22 @@ export const SyncManager = {
         },
         body: JSON.stringify(payload)
       });
+
+      // 如果返回 401 (JWT expired)，尝试静默刷新 Token 并重试一次
+      if (res.status === 401 && this.refreshToken) {
+        console.log('[SyncManager] 401 Unauthorized received, refreshing token and retrying...');
+        await this.refreshSession();
+        res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data`, {
+          method: 'POST',
+          headers: {
+            'apikey': this.config.supabaseAnonKey,
+            'Authorization': `Bearer ${this.token}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify(payload)
+        });
+      }
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
@@ -212,7 +287,7 @@ export const SyncManager = {
   },
 
   /**
-   * 从 Supabase 云端拉取最新数据
+   * 从 Supabase 云端拉取最新数据（含 401 JWT 过期自动重试）
    */
   async pullFromCloud() {
     if (!this.isEnabled || !this.token || !this.user) {
@@ -225,7 +300,9 @@ export const SyncManager = {
     this.status = 'syncing';
 
     try {
-      const res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*`, {
+      await this._ensureValidToken();
+
+      let res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*`, {
         method: 'GET',
         headers: {
           'apikey': this.config.supabaseAnonKey,
@@ -233,6 +310,20 @@ export const SyncManager = {
           'Content-Type': 'application/json'
         }
       });
+
+      // 如果返回 401 (JWT expired)，尝试静默刷新 Token 并重试一次
+      if (res.status === 401 && this.refreshToken) {
+        console.log('[SyncManager] 401 Unauthorized received during pull, refreshing token...');
+        await this.refreshSession();
+        res = await fetch(`${this.config.supabaseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*`, {
+          method: 'GET',
+          headers: {
+            'apikey': this.config.supabaseAnonKey,
+            'Authorization': `Bearer ${this.token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
@@ -362,15 +453,17 @@ export const SyncManager = {
 
   async _saveSession(authData) {
     this.token = authData.access_token;
-    this.user = authData.user;
+    this.refreshToken = authData.refresh_token || this.refreshToken;
+    this.user = authData.user || this.user;
+    this.expiresAt = Date.now() + (authData.expires_in || 3600) * 1000;
     this.isEnabled = true;
     this.status = 'idle';
 
     await Database.set(AUTH_KEY, {
       token: this.token,
-      refreshToken: authData.refresh_token,
+      refreshToken: this.refreshToken,
       user: this.user,
-      expiresAt: Date.now() + (authData.expires_in || 3600) * 1000
+      expiresAt: this.expiresAt
     });
   },
 
