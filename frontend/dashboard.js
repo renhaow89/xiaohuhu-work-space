@@ -1,6 +1,6 @@
 // Xiaohuhu Work Space — Dashboard 控制器
 // 侧边栏单面板切换、顶部 Header 动态中文日期与快捷备份/导入
-// 增强：每次切换面板自动触发对应面板的 render() 重新拉取最新数据，消除多端同步后界面不刷新的问题
+// 增强：智能避开用户当前正在打字输入的面板，杜绝输入过程中被刷新打断
 
 import { TaskPanel } from './task-panel.js';
 import { JournalPanel } from './journal-panel.js';
@@ -67,10 +67,22 @@ export const Dashboard = {
   },
 
   /**
-   * 刷新所有面板的最新数据渲染
+   * 刷新所有面板的最新数据渲染（智能避开用户当前正在输入的面板或表单）
    */
   async refreshAllPanels() {
+    // 检查用户当前是否正聚焦在输入框中打字
+    const activeEl = document.activeElement;
+    const isUserTyping = activeEl && (
+      activeEl.tagName === 'INPUT' ||
+      activeEl.tagName === 'TEXTAREA' ||
+      activeEl.isContentEditable
+    );
+
     for (const key of Object.keys(PANEL_CONFIG)) {
+      // 如果用户当前正在这个面板里打字，跳过当前激活面板的刷新，避免打字被清空！
+      if (isUserTyping && key === this.currentPanel) {
+        continue;
+      }
       const cfg = PANEL_CONFIG[key];
       if (cfg && typeof cfg.render === 'function') {
         try {
@@ -185,7 +197,7 @@ export const Dashboard = {
       try {
         history.replaceState(null, '', `#${panelId}`);
       } catch (e) {
-        window.location.hash = `#${panelId}`;
+        window.location.hash = `#${panelId}` exercise;
       }
     }
   },
