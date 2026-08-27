@@ -1,15 +1,25 @@
 // Xiaohuhu Work Space — 同步管理器 (SyncManager)
 // 负责基于 Supabase 的邮箱认证与多端数据双向增量同步
-// 包含自动 JWT Token 刷新 (Auto Refresh on Expiry) 与透明重试机制
+// 包含：静默实时防抖自动同步、前后台切换自动拉取、JWT 自动续期与删除墓碑同步
 // 保持纯原生 ES Modules 零构建工具依赖
 
 import Database from './database.js';
 import BackupManager from './backup.js';
 import AppVersion from './version.js';
+import EventBus from './event.js';
 
 const CONFIG_KEY = 'workspace_sync_config';
 const AUTH_KEY = 'workspace_sync_auth';
 const SYNC_META_KEY = 'workspace_sync_meta';
+const DELETED_KEY = 'workspace_deleted_items';
+
+const SYNCABLE_COLLECTIONS = new Set([
+  'workspace_tasks',
+  'journals',
+  'workspace_readings',
+  'workspace_research',
+  DELETED_KEY
+]);
 
 export const SyncManager = {
   status: 'idle', // 'idle' | 'syncing' | 'synced' | 'error' | 'disabled'
@@ -23,9 +33,12 @@ export const SyncManager = {
     supabaseUrl: '',
     supabaseAnonKey: ''
   },
+  _isInternalSyncing: false,
+  _syncTimer: null,
+  _listenersAttached: false,
 
   /**
-   * 初始化同步管理器：读取本地配置与认证信息
+   * 初始化同步管理器：读取本地配置与认证信息并绑定自动同步监听器
    */
   async init() {
     try {
@@ -52,11 +65,83 @@ export const SyncManager = {
         this.lastSyncTime = meta.lastSyncTime;
       }
 
+      this._attachAutoSyncListeners();
+
       console.log('[SyncManager] Initialized. Enabled:', this.isEnabled, 'User:', this.user ? this.user.email : 'None');
     } catch (e) {
       console.warn('[SyncManager] Init failed:', e);
       this.status = 'error';
     }
+  },
+
+  /**
+   * 绑定实时自动同步与前后台切换监听
+   * @private
+   */
+  _attachAutoSyncListeners() {
+    if (this._listenersAttached) return;
+    this._listenersAttached = true;
+
+    // 1. 当本地数据发生增删改时，自动防抖静默同步到云端
+    EventBus.on('data:changed', ({ collection }) => {
+      if (this.isEnabled && !this._isInternalSyncing && SYNCABLE_COLLECTIONS.has(collection)) {
+        this.debouncedSync(1200);
+      }
+    });
+
+    // 2. 当用户切换回当前应用或解锁手机屏幕时，自动静默双向拉取合并
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible' && this.isEnabled && !this._isInternalSyncing) {
+          console.log('[SyncManager] App became visible, checking cloud updates...');
+          try {
+            await this.sync();
+            if (window.Dashboard?.refreshAllPanels) {
+              window.Dashboard.refreshAllPanels();
+            }
+          } catch (err) {
+            console.warn('[SyncManager] Auto sync on visibilitychange failed:', err);
+          }
+        }
+      });
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', async () => {
+        if (this.isEnabled && !this._isInternalSyncing) {
+          try {
+            await this.sync();
+            if (window.Dashboard?.refreshAllPanels) {
+              window.Dashboard.refreshAllPanels();
+            }
+          } catch (err) {
+            // 静默失败
+          }
+        }
+      });
+    }
+  },
+
+  /**
+   * 防抖静默同步（用于在用户写任务、打勾、删日志后自动同步，无需每次手动点击）
+   * @param {number} delay 延迟毫秒数
+   */
+  debouncedSync(delay = 1200) {
+    if (!this.isEnabled) return;
+    if (this._syncTimer) clearTimeout(this._syncTimer);
+
+    this._syncTimer = setTimeout(async () => {
+      if (this._isInternalSyncing) return;
+      try {
+        console.log('[SyncManager] Auto debounced sync started...');
+        await this.sync();
+        if (window.Dashboard?.refreshAllPanels) {
+          window.Dashboard.refreshAllPanels();
+        }
+      } catch (err) {
+        console.warn('[SyncManager] Auto debounced sync failed:', err);
+      }
+    }, delay);
   },
 
   /**
@@ -96,7 +181,6 @@ export const SyncManager = {
       throw new Error(data.msg || data.error_description || data.message || '注册失败');
     }
 
-    // 如果直接返回了 access_token
     if (data.access_token && data.user) {
       await this._saveSession(data);
     }
@@ -135,7 +219,7 @@ export const SyncManager = {
 
     await this._saveSession(data);
 
-    // 登录后自动触发一次全量拉取合并
+    // 登录后自动触发一次双向智能同步
     try {
       await this.sync();
     } catch (err) {
@@ -190,7 +274,6 @@ export const SyncManager = {
     if (!this.token) {
       throw new Error('未登录或未启用云同步');
     }
-    // 若在 1 分钟内过期或已过期，主动发起静默刷新
     if (this.expiresAt && Date.now() > this.expiresAt - 60000) {
       if (this.refreshToken) {
         console.log('[SyncManager] Token expired or expiring, refreshing silently...');
@@ -214,7 +297,7 @@ export const SyncManager = {
   },
 
   /**
-   * 将本地全量数据打包推送到 Supabase 云端（含 401 JWT 过期自动重试）
+   * 将本地全量数据打包推送到 Supabase 云端
    */
   async pushToCloud(customData = null) {
     if (!this.isEnabled || !this.token || !this.user) {
@@ -249,7 +332,6 @@ export const SyncManager = {
         body: JSON.stringify(payload)
       });
 
-      // 如果返回 401 (JWT expired)，尝试静默刷新 Token 并重试一次
       if (res.status === 401 && this.refreshToken) {
         console.log('[SyncManager] 401 Unauthorized received, refreshing token and retrying...');
         await this.refreshSession();
@@ -287,7 +369,7 @@ export const SyncManager = {
   },
 
   /**
-   * 从 Supabase 云端拉取最新数据（含 401 JWT 过期自动重试）
+   * 从 Supabase 云端拉取最新数据
    */
   async pullFromCloud() {
     if (!this.isEnabled || !this.token || !this.user) {
@@ -311,7 +393,6 @@ export const SyncManager = {
         }
       });
 
-      // 如果返回 401 (JWT expired)，尝试静默刷新 Token 并重试一次
       if (res.status === 401 && this.refreshToken) {
         console.log('[SyncManager] 401 Unauthorized received during pull, refreshing token...');
         await this.refreshSession();
@@ -357,13 +438,18 @@ export const SyncManager = {
   },
 
   /**
-   * 双向智能同步：拉取远端 -> 基于时间戳合并 -> 推送最新合并状态
+   * 双向智能同步：拉取远端 -> 基于时间戳与删除墓碑合并 -> 推送最新合并状态
    */
   async sync() {
     if (!this.isEnabled) {
       return { success: false, message: '未启用云同步' };
     }
 
+    if (this._isInternalSyncing) {
+      return { success: true, message: '同步正在进行中...' };
+    }
+
+    this._isInternalSyncing = true;
     this.status = 'syncing';
 
     try {
@@ -372,21 +458,23 @@ export const SyncManager = {
 
       // 如果云端没有数据，直接将本地数据全量推上云端
       if (!pullRes.data) {
-        return await this.pushToCloud();
+        const pushRes = await this.pushToCloud();
+        this._isInternalSyncing = false;
+        return pushRes;
       }
 
       // 2. 本地自动安全备份
       const localBackup = await BackupManager.exportData();
 
-      // 3. 智能合并各模块列表
+      // 3. 智能合并各模块列表与删除墓碑
       const mergedData = this._mergeDataSets(localBackup.data, pullRes.data);
 
-      // 4. 应用合并结果回本地数据库
+      // 4. 应用合并结果回本地数据库（标记内部同步中，防止死循环）
       for (const [key, value] of Object.entries(mergedData)) {
         await Database.set(key, value);
       }
 
-      // 5. 将合并后的最新数据推回云端
+      // 5. 将合并后的最新全量数据推回云端
       const pushRes = await this.pushToCloud();
 
       this.status = 'synced';
@@ -401,53 +489,74 @@ export const SyncManager = {
     } catch (error) {
       this.status = 'error';
       throw error;
+    } finally {
+      this._isInternalSyncing = false;
     }
   },
 
   /**
-   * 多模块列表项根据 id 与 updatedAt 进行 Last-Write-Wins 智能合并
+   * 多模块列表项根据 id、updatedAt 与删除墓碑进行 Last-Write-Wins 智能合并
    * @private
    */
   _mergeDataSets(localData = {}, remoteData = {}) {
     const allKeys = Array.from(new Set([...Object.keys(localData), ...Object.keys(remoteData)]));
     const merged = {};
 
+    // 1. 合并删除墓碑记录
+    const localDeleted = localData[DELETED_KEY] || {};
+    const remoteDeleted = remoteData[DELETED_KEY] || {};
+    const mergedDeleted = { ...remoteDeleted, ...localDeleted };
+
     for (const key of allKeys) {
+      if (key === DELETED_KEY) continue;
+
       const localVal = localData[key];
       const remoteVal = remoteData[key];
 
-      if (!localVal) {
-        merged[key] = remoteVal;
-      } else if (!remoteVal) {
-        merged[key] = localVal;
-      } else if (Array.isArray(localVal) && Array.isArray(remoteVal)) {
+      if (!localVal && !remoteVal) {
+        merged[key] = [];
+      } else if (Array.isArray(localVal) || Array.isArray(remoteVal)) {
+        const localList = Array.isArray(localVal) ? localVal : [];
+        const remoteList = Array.isArray(remoteVal) ? remoteVal : [];
         const itemMap = new Map();
 
-        for (const item of remoteVal) {
-          if (item && item.id) itemMap.set(item.id, item);
+        // 处理远端项
+        for (const item of remoteList) {
+          if (!item || !item.id) continue;
+          const delTs = mergedDeleted[item.id] ? new Date(mergedDeleted[item.id]).getTime() : 0;
+          const itemTs = new Date(item.updatedAt || item.createdAt || 0).getTime();
+          // 若被删除且删除时间比修改时间新，则丢弃
+          if (delTs > 0 && delTs >= itemTs) continue;
+          itemMap.set(item.id, item);
         }
 
-        for (const item of localVal) {
-          if (item && item.id) {
-            if (!itemMap.has(item.id)) {
+        // 处理本地项并基于 updatedAt 进行冲突仲裁
+        for (const item of localList) {
+          if (!item || !item.id) continue;
+          const delTs = mergedDeleted[item.id] ? new Date(mergedDeleted[item.id]).getTime() : 0;
+          const itemTs = new Date(item.updatedAt || item.createdAt || 0).getTime();
+          if (delTs > 0 && delTs >= itemTs) continue;
+
+          if (!itemMap.has(item.id)) {
+            itemMap.set(item.id, item);
+          } else {
+            const remoteItem = itemMap.get(item.id);
+            const remoteTs = new Date(remoteItem.updatedAt || remoteItem.createdAt || 0).getTime();
+            if (itemTs >= remoteTs) {
               itemMap.set(item.id, item);
-            } else {
-              const remoteItem = itemMap.get(item.id);
-              const localTs = new Date(item.updatedAt || item.createdAt || 0).getTime();
-              const remoteTs = new Date(remoteItem.updatedAt || remoteItem.createdAt || 0).getTime();
-              if (localTs >= remoteTs) {
-                itemMap.set(item.id, item);
-              }
             }
           }
         }
 
         merged[key] = Array.from(itemMap.values());
+      } else if (typeof localVal === 'object' || typeof remoteVal === 'object') {
+        merged[key] = { ...(remoteVal || {}), ...(localVal || {}) };
       } else {
-        merged[key] = typeof localVal === 'object' ? { ...remoteVal, ...localVal } : localVal;
+        merged[key] = localVal !== undefined ? localVal : remoteVal;
       }
     }
 
+    merged[DELETED_KEY] = mergedDeleted;
     return merged;
   },
 
