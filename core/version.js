@@ -7,7 +7,7 @@ const AppVersion = {
   app: 'xiaohuhu-work-space',
 
   /** 应用版本号（语义化版本） */
-  version: '1.2.1',
+  version: '1.2.2',
 
   /**
    * 数据 Schema 版本号（整数）
