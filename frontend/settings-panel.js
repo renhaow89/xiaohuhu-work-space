@@ -1,5 +1,5 @@
 // Xiaohuhu Work Space Settings Panel
-// 设置中心面板 — 包含多端云同步 (Supabase 邮箱登录/注册)、内置保姆级配置手册、一键深度清理缓存、备份管理与数据清空
+// 设置中心面板 — 包含多端云同步 (Supabase 邮箱登录/注册)、内置保姆级配置手册、一键连通性测试、一键深度清理缓存、备份管理与数据清空
 
 import BackupManager from '../core/backup.js';
 import BackupHistory from '../core/backup-history.js';
@@ -62,6 +62,7 @@ export const SettingsPanel = {
             </div>
             <div class="config-actions">
               <button id="saveConfigBtn" class="btn btn-secondary btn-sm">💾 保存配置</button>
+              <button id="testConfigBtn" class="btn btn-secondary btn-sm" style="border-color: var(--primary-color);">🔍 测试连接</button>
               <span id="configMsg" class="tip-msg"></span>
             </div>
           </div>
@@ -244,21 +245,18 @@ export const SettingsPanel = {
           btn.textContent = '⏳ 正在清理缓存...';
         }
         try {
-          // ① 注销当前所有 Service Worker
           if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
             for (const reg of registrations) {
               await reg.unregister();
             }
           }
-          // ② 清空 CacheStorage 静态离线缓存
           if ('caches' in window) {
             const cacheKeys = await caches.keys();
             for (const key of cacheKeys) {
               await caches.delete(key);
             }
           }
-          // ③ 附带毫秒时间戳强制硬重载
           const targetUrl = window.location.origin + window.location.pathname + '?_t_reload=' + Date.now();
           window.location.replace(targetUrl);
         } catch (err) {
@@ -273,7 +271,7 @@ export const SettingsPanel = {
     if (clearCacheBtn) clearCacheBtn.onclick = () => handleClearCache(clearCacheBtn);
     if (quickClearCacheBtn) quickClearCacheBtn.onclick = () => handleClearCache(quickClearCacheBtn);
 
-    // 1. 配置保存
+    // 1. 配置保存与连通性测试
     const saveCfgBtn = container.querySelector('#saveConfigBtn');
     if (saveCfgBtn) {
       saveCfgBtn.onclick = async () => {
@@ -288,8 +286,23 @@ export const SettingsPanel = {
         await SyncManager.saveConfig(url, key);
         const msg = container.querySelector('#configMsg');
         msg.textContent = '✅ 项目配置已保存';
-        msg.style.color = '';
+        msg.style.color = '#10B981';
         setTimeout(() => { if (msg) msg.textContent = ''; }, 3000);
+      };
+    }
+
+    const testCfgBtn = container.querySelector('#testConfigBtn');
+    if (testCfgBtn) {
+      testCfgBtn.onclick = async () => {
+        const url = (container.querySelector('#cfgSupabaseUrl')?.value || '').trim();
+        const key = (container.querySelector('#cfgSupabaseKey')?.value || '').trim();
+        const msg = container.querySelector('#configMsg');
+        msg.textContent = '⏳ 正在测试连接...';
+        msg.style.color = '';
+
+        const res = await SyncManager.testConnection(url, key);
+        msg.textContent = res.message;
+        msg.style.color = res.success ? '#10B981' : '#EF4444';
       };
     }
 
