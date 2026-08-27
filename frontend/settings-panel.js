@@ -90,20 +90,7 @@ export const SettingsPanel = {
               <div class="step-desc">
                 <strong>运行建表与专属加密防盗锁 (RLS)：</strong><br>
                 点击左侧黑色菜单第 3 个图标 <code>SQL Editor (>_)</code> $\to$ 点击 <code>+ New query</code> $\to$ 粘贴下方代码 $\to$ 点击右下角绿色 <code>Run</code> 按钮（执行成功将显示 <code>Success. No rows returned</code>）：
-                <pre class="tutorial-code-block"><code>CREATE TABLE IF NOT EXISTS user_workspace_data (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  data JSONB NOT NULL DEFAULT '{}'::jsonb,
-  schema INT NOT NULL DEFAULT 1,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-ALTER TABLE user_workspace_data ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can manage their own workspace data"
-ON user_workspace_data FOR ALL
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);</code></pre>
+                <pre class="tutorial-code-block"><code>CREATE TABLE IF NOT EXISTS user_workspace_data (\n  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,\n  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,\n  data JSONB NOT NULL DEFAULT '{}'::jsonb,\n  schema INT NOT NULL DEFAULT 1,\n  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\nALTER TABLE user_workspace_data ENABLE ROW LEVEL SECURITY;\n\nCREATE POLICY \"Users can manage their own workspace data\"\nON user_workspace_data FOR ALL\nUSING (auth.uid() = user_id)\nWITH CHECK (auth.uid() = user_id);</code></pre>
                 <div class="tutorial-tip-box">
                   💡 <strong>为什么要做这步？</strong><br>
                   ① <strong>建储物柜</strong>：在云端建好存放你任务和日志的数据表；<br>
@@ -338,6 +325,9 @@ WITH CHECK (auth.uid() = user_id);</code></pre>
         } catch (err) {
           feedback.textContent = '❌ 同步失败: ' + err.message;
           feedback.className = 'sync-feedback-text text-danger';
+          if (err.message.includes('过期') || err.message.includes('重新登录') || err.message.includes('JWT')) {
+            setTimeout(() => this.render(), 1800);
+          }
         } finally {
           manualSyncBtn.disabled = false;
         }
@@ -358,6 +348,9 @@ WITH CHECK (auth.uid() = user_id);</code></pre>
         } catch (err) {
           feedback.textContent = '❌ 推送失败: ' + err.message;
           feedback.className = 'sync-feedback-text text-danger';
+          if (err.message.includes('过期') || err.message.includes('重新登录') || err.message.includes('JWT')) {
+            setTimeout(() => this.render(), 1800);
+          }
         }
       };
     }
@@ -381,6 +374,9 @@ WITH CHECK (auth.uid() = user_id);</code></pre>
         } catch (err) {
           feedback.textContent = '❌ 拉取失败: ' + err.message;
           feedback.className = 'sync-feedback-text text-danger';
+          if (err.message.includes('过期') || err.message.includes('重新登录') || err.message.includes('JWT')) {
+            setTimeout(() => this.render(), 1800);
+          }
         }
       };
     }
