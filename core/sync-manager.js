@@ -1,6 +1,6 @@
 // Xiaohuhu Work Space — 同步管理器 (SyncManager)
 // 负责基于 Supabase 的邮箱认证与多端数据双向增量同步
-// 包含：轻量心跳检测、防抖自动推送、前后台切换拉取、URL智能格式化与高容错网络通信
+// 包含：轻量心跳检测、防抖自动推送、前后台切换拉取、URL智能域名提取与连通性自检
 // 保持纯原生 ES Modules 零构建工具依赖
 
 import Database from './database.js';
@@ -39,16 +39,30 @@ export const SyncManager = {
   _listenersAttached: false,
 
   /**
-   * 获取规范化后的 Supabase URL（自动补全 https:// 并去除尾部斜杠）
+   * 规范化 URL 字符串，精准提取 origin（如 https://xxx.supabase.co）
+   * 自动容错各种带路径、带斜杠或缺少协议的情况
    * @private
    */
-  _getNormalizedUrl() {
-    let url = (this.config.supabaseUrl || '').trim();
+  _normalizeUrlString(str) {
+    let url = (str || '').trim();
     if (!url) return '';
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
-    return url.replace(/\/+$/, '');
+    try {
+      const parsed = new URL(url);
+      return parsed.origin;
+    } catch (e) {
+      return url.replace(/\/+$/, '');
+    }
+  },
+
+  /**
+   * 获取规范化后的 Supabase Base URL
+   * @private
+   */
+  _getNormalizedUrl() {
+    return this._normalizeUrlString(this.config.supabaseUrl);
   },
 
   /**
@@ -58,7 +72,10 @@ export const SyncManager = {
     try {
       const savedConfig = await Database.get(CONFIG_KEY, null);
       if (savedConfig && savedConfig.supabaseUrl && savedConfig.supabaseAnonKey) {
-        this.config = savedConfig;
+        this.config = {
+          supabaseUrl: this._normalizeUrlString(savedConfig.supabaseUrl),
+          supabaseAnonKey: (savedConfig.supabaseAnonKey || '').trim()
+        };
       }
 
       const savedAuth = await Database.get(AUTH_KEY, null);
@@ -91,6 +108,46 @@ export const SyncManager = {
     } catch (e) {
       console.warn('[SyncManager] Init failed:', e);
       this.status = 'error';
+    }
+  },
+
+  /**
+   * 测试 Supabase 项目连通性
+   */
+  async testConnection(url = null, key = null) {
+    const targetUrl = url ? this._normalizeUrlString(url) : this._getNormalizedUrl();
+    const targetKey = key || this.config.supabaseAnonKey;
+
+    if (!targetUrl || !targetKey) {
+      return { success: false, message: '❌ 请先填写 Project URL 与 Anon Key' };
+    }
+
+    try {
+      const res = await fetch(`${targetUrl}/auth/v1/health`, {
+        method: 'GET',
+        headers: { 'apikey': targetKey }
+      });
+
+      if (res.ok) {
+        return { success: true, message: '🟢 连通成功！Supabase 服务正常' };
+      }
+
+      const restRes = await fetch(`${targetUrl}/rest/v1/`, {
+        method: 'GET',
+        headers: { 'apikey': targetKey }
+      });
+
+      if (restRes.ok || restRes.status === 200 || restRes.status === 404) {
+        return { success: true, message: '🟢 连通成功！API 网关响应正常' };
+      }
+
+      return { success: false, message: `🔴 连接异常 (HTTP ${res.status})` };
+    } catch (err) {
+      console.error('[SyncManager] Test connection error:', err);
+      return {
+        success: false,
+        message: '🔴 无法连接：请检查网络、URL 是否正确，或项目是否处于 Paused 暂停状态'
+      };
     }
   },
 
@@ -234,14 +291,8 @@ export const SyncManager = {
    * @param {string} key Supabase Anon Key
    */
   async saveConfig(url, key) {
-    let cleanUrl = (url || '').trim();
-    if (cleanUrl && !cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-      cleanUrl = 'https://' + cleanUrl;
-    }
-    cleanUrl = cleanUrl.replace(/\/+$/, '');
-
     this.config = {
-      supabaseUrl: cleanUrl,
+      supabaseUrl: this._normalizeUrlString(url),
       supabaseAnonKey: (key || '').trim()
     };
     await Database.set(CONFIG_KEY, this.config);
@@ -255,7 +306,7 @@ export const SyncManager = {
   async signup(email, password) {
     const baseUrl = this._getNormalizedUrl();
     if (!baseUrl || !this.config.supabaseAnonKey) {
-      throw new Error('请先配置 Supabase Project URL 与 Anon Key');
+      throw new Error('请先在上方填入 Supabase Project URL 与 Anon Key');
     }
 
     try {
@@ -286,7 +337,7 @@ export const SyncManager = {
       };
     } catch (err) {
       if (err.message === 'Failed to fetch') {
-        throw new Error('网络连接失败，请检查 URL 是否正确或网络是否畅通');
+        throw new Error('无法连接到 Supabase，请点击上方「🔍 测试连接」排查');
       }
       throw err;
     }
@@ -300,7 +351,7 @@ export const SyncManager = {
   async login(email, password) {
     const baseUrl = this._getNormalizedUrl();
     if (!baseUrl || !this.config.supabaseAnonKey) {
-      throw new Error('请先配置 Supabase Project URL 与 Anon Key');
+      throw new Error('请先在上方填入 Supabase Project URL 与 Anon Key');
     }
 
     try {
@@ -334,7 +385,7 @@ export const SyncManager = {
       };
     } catch (err) {
       if (err.message === 'Failed to fetch') {
-        throw new Error('网络连接失败，请检查 URL 是否正确或网络是否畅通');
+        throw new Error('无法连接到 Supabase，请点击上方「🔍 测试连接」排查');
       }
       throw err;
     }
@@ -361,7 +412,10 @@ export const SyncManager = {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        await this.logout();
+        // 仅在明确收到 400 invalid_grant 时登出
+        if (res.status === 400) {
+          await this.logout();
+        }
         throw new Error(data.error_description || data.message || '登录态已过期，请重新登录');
       }
 
@@ -485,7 +539,7 @@ export const SyncManager = {
       this.status = 'error';
       console.error('[SyncManager] pushToCloud error:', error);
       if (error.message === 'Failed to fetch') {
-        throw new Error('无法连接到 Supabase，请检查网络或 Project URL 是否正确');
+        throw new Error('无法连接到 Supabase，请检查网络或 Project URL');
       }
       throw error;
     }
@@ -522,6 +576,7 @@ export const SyncManager = {
       });
 
       if (res.status === 401 && this.refreshToken) {
+        console.log('[SyncManager] 401 Unauthorized received during pull, refreshing token...');
         await this.refreshSession();
         res = await fetch(`${baseUrl}/rest/v1/user_workspace_data?id=eq.${this.user.id}&select=*`, {
           method: 'GET',
@@ -563,7 +618,7 @@ export const SyncManager = {
       this.status = 'error';
       console.error('[SyncManager] pullFromCloud error:', error);
       if (error.message === 'Failed to fetch') {
-        throw new Error('无法连接到 Supabase，请检查网络或 Project URL 是否正确');
+        throw new Error('无法连接到 Supabase，请检查网络或 Project URL');
       }
       throw error;
     }
