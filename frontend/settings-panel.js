@@ -44,7 +44,7 @@ export const SettingsPanel = {
         </div>
 
         <!-- 项目配置折叠区域 -->
-        <details class="sync-config-details" ${!syncStatus.hasConfig ? 'open' : ''}>
+        <details id="syncConfigDetails" class="sync-config-details" ${!syncStatus.hasConfig ? 'open' : ''}>
           <summary class="sync-config-summary">⚙️ Supabase 项目连接配置 (初次使用或修改请点开)</summary>
           <div class="sync-config-body">
             <div class="input-row">
@@ -231,11 +231,18 @@ export const SettingsPanel = {
     const saveCfgBtn = container.querySelector('#saveConfigBtn');
     if (saveCfgBtn) {
       saveCfgBtn.onclick = async () => {
-        const url = container.querySelector('#cfgSupabaseUrl').value;
-        const key = container.querySelector('#cfgSupabaseKey').value;
+        const url = (container.querySelector('#cfgSupabaseUrl')?.value || '').trim();
+        const key = (container.querySelector('#cfgSupabaseKey')?.value || '').trim();
+        if (!url || !key) {
+          const msg = container.querySelector('#configMsg');
+          msg.textContent = '❌ 请完整填写 URL 与 Key';
+          msg.style.color = '#EF4444';
+          return;
+        }
         await SyncManager.saveConfig(url, key);
         const msg = container.querySelector('#configMsg');
         msg.textContent = '✅ 项目配置已保存';
+        msg.style.color = '';
         setTimeout(() => { if (msg) msg.textContent = ''; }, 3000);
       };
     }
@@ -263,6 +270,25 @@ export const SettingsPanel = {
         const email = container.querySelector('#authEmail').value.trim();
         const password = container.querySelector('#authPassword').value.trim();
         const feedback = container.querySelector('#authFeedbackMsg');
+
+        // 智能自动读取并保存配置输入框中的 URL 与 Key
+        const urlInput = container.querySelector('#cfgSupabaseUrl');
+        const keyInput = container.querySelector('#cfgSupabaseKey');
+        const urlVal = urlInput ? urlInput.value.trim() : '';
+        const keyVal = keyInput ? keyInput.value.trim() : '';
+
+        if (urlVal && keyVal) {
+          await SyncManager.saveConfig(urlVal, keyVal);
+        }
+
+        if (!SyncManager.config.supabaseUrl || !SyncManager.config.supabaseAnonKey) {
+          const detailsEl = container.querySelector('#syncConfigDetails');
+          if (detailsEl) detailsEl.open = true;
+          feedback.textContent = '❌ 请在上方「⚙️ Supabase 项目连接配置」中填入 URL 与 Key 并保存';
+          feedback.className = 'auth-feedback-text text-danger';
+          if (urlInput) urlInput.focus();
+          return;
+        }
 
         if (!email || !password) {
           feedback.textContent = '❌ 请输入邮箱和密码';
