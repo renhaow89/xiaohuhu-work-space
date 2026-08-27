@@ -5,6 +5,7 @@
 import Database from '../core/database.js';
 
 const TASK_KEY = 'workspace_tasks';
+const DELETED_KEY = 'workspace_deleted_items';
 
 export const TaskModule = {
   /**
@@ -58,8 +59,7 @@ export const TaskModule = {
   /**
    * 创建任务
    * @param {string|object} input 任务标题字符串或任务对象
-   * @returns {Promise<object>}
-   */
+   * @returns {Promise<object>}\n   */
   async create(input) {
     const tasks = await this.list();
 
@@ -136,7 +136,7 @@ export const TaskModule = {
   },
 
   /**
-   * 删除任务
+   * 删除任务（包含多端删除墓碑追踪）
    * @param {string} id
    * @returns {Promise<Array>}
    */
@@ -144,6 +144,16 @@ export const TaskModule = {
     const tasks = await this.list();
     const filtered = tasks.filter(task => task.id !== id);
     await Database.set(TASK_KEY, filtered);
+
+    // 记录删除墓碑，防止多端同步时旧数据复活
+    try {
+      const deletedMap = await Database.get(DELETED_KEY, {});
+      deletedMap[id] = new Date().toISOString();
+      await Database.set(DELETED_KEY, deletedMap);
+    } catch (e) {
+      console.warn('[TaskModule] Failed to record deletion tombstone:', e);
+    }
+
     return filtered;
   },
 
