@@ -1,6 +1,6 @@
 // Xiaohuhu Work Space — 同步管理器 (SyncManager)
 // 负责基于 Supabase 的邮箱认证与多端数据双向增量同步
-// 包含：4秒轻量心跳轮询实现秒级多端互通、实时防抖自动推送、前后台切换拉取与删除墓碑同步
+// 包含：轻量心跳检测、防抖自动推送、前后台切换拉取与删除墓碑同步
 // 保持纯原生 ES Modules 零构建工具依赖
 
 import Database from './database.js';
@@ -28,7 +28,7 @@ export const SyncManager = {
   token: null,
   refreshToken: null,
   expiresAt: 0,
-  lastSyncTime: null,
+  lastSyncTime: 0, // 保存为毫秒时间戳数字，避免字符串格式比对产生死循环
   config: {
     supabaseUrl: '',
     supabaseAnonKey: ''
@@ -63,13 +63,15 @@ export const SyncManager = {
 
       const meta = await Database.get(SYNC_META_KEY, null);
       if (meta && meta.lastSyncTime) {
-        this.lastSyncTime = meta.lastSyncTime;
+        this.lastSyncTime = typeof meta.lastSyncTime === 'number'
+          ? meta.lastSyncTime
+          : new Date(meta.lastSyncTime).getTime();
       }
 
       this._attachAutoSyncListeners();
 
       if (this.isEnabled) {
-        this.startAutoPolling(4000);
+        this.startAutoPolling(5000);
       }
 
       console.log('[SyncManager] Initialized. Enabled:', this.isEnabled, 'User:', this.user ? this.user.email : 'None');
@@ -80,10 +82,10 @@ export const SyncManager = {
   },
 
   /**
-   * 启动多端秒级实时轮询（每 4 秒检查一次云端时间戳，有变动自动拉取刷新）
-   * @param {number} intervalMs 轮询间隔（默认 4000ms）
+   * 启动多端智能心跳轮询（检查是否有其他设备推了新数据）
+   * @param {number} intervalMs 轮询间隔（默认 5000ms）
    */
-  startAutoPolling(intervalMs = 4000) {
+  startAutoPolling(intervalMs = 5000) {
     if (this._pollingTimer) return;
 
     this._pollingTimer = setInterval(async () => {
@@ -117,8 +119,16 @@ export const SyncManager = {
           const rows = await res.json();
           if (rows && rows.length > 0) {
             const remoteUpdatedAt = rows[0].updated_at;
-            if (remoteUpdatedAt && remoteUpdatedAt !== this.lastSyncTime) {
-              console.log('[SyncManager] Cloud updates detected via auto-polling. Merging...');
+            const remoteTs = new Date(remoteUpdatedAt).getTime();
+            const localTs = typeof this.lastSyncTime === 'number'
+              ? this.lastSyncTime
+              : new Date(this.lastSyncTime || 0).getTime();
+
+            // 只有当远端时间戳严格大于本地最后同步时间 2 秒以上时，才说明有另一台设备写入了新内容！
+            if (remoteTs > localTs + 2000) {
+              console.log('[SyncManager] Remote changes detected from another device. Pulling...');
+              this.lastSyncTime = remoteTs;
+              await Database.set(SYNC_META_KEY, { lastSyncTime: this.lastSyncTime });
               await this.sync();
               if (window.Dashboard?.refreshAllPanels) {
                 await window.Dashboard.refreshAllPanels();
@@ -127,7 +137,7 @@ export const SyncManager = {
           }
         }
       } catch (e) {
-        // 心跳静默处理
+        // 心跳静默容错
       }
     }, intervalMs);
   },
@@ -147,18 +157,17 @@ export const SyncManager = {
     if (this._listenersAttached) return;
     this._listenersAttached = true;
 
-    // 1. 当本地数据发生增删改时，300ms 快速防抖静默同步到云端
+    // 1. 当本地数据发生增删改时，防抖静默同步到云端
     EventBus.on('data:changed', ({ collection }) => {
       if (this.isEnabled && !this._isInternalSyncing && SYNCABLE_COLLECTIONS.has(collection)) {
-        this.debouncedSync(300);
+        this.debouncedSync(1000);
       }
     });
 
-    // 2. 当用户切换回当前应用或解锁手机屏幕时，自动静默双向拉取合并
+    // 2. 当用户切换回当前应用或解锁手机屏幕时，自动双向拉取
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', async () => {
         if (document.visibilityState === 'visible' && this.isEnabled && !this._isInternalSyncing) {
-          console.log('[SyncManager] App became visible, checking cloud updates...');
           try {
             await this.sync();
             if (window.Dashboard?.refreshAllPanels) {
@@ -188,17 +197,16 @@ export const SyncManager = {
   },
 
   /**
-   * 防抖静默同步（用于在用户写任务、打勾、删日志后自动同步，无需每次手动点击）
+   * 防抖静默同步
    * @param {number} delay 延迟毫秒数
    */
-  debouncedSync(delay = 300) {
+  debouncedSync(delay = 1000) {
     if (!this.isEnabled) return;
     if (this._syncTimer) clearTimeout(this._syncTimer);
 
     this._syncTimer = setTimeout(async () => {
       if (this._isInternalSyncing) return;
       try {
-        console.log('[SyncManager] Auto debounced sync started...');
         await this.sync();
         if (window.Dashboard?.refreshAllPanels) {
           window.Dashboard.refreshAllPanels();
@@ -248,7 +256,7 @@ export const SyncManager = {
 
     if (data.access_token && data.user) {
       await this._saveSession(data);
-      this.startAutoPolling(4000);
+      this.startAutoPolling(5000);
     }
 
     return {
@@ -284,7 +292,7 @@ export const SyncManager = {
     }
 
     await this._saveSession(data);
-    this.startAutoPolling(4000);
+    this.startAutoPolling(5000);
 
     try {
       await this.sync();
@@ -381,6 +389,8 @@ export const SyncManager = {
 
       const backup = customData || await BackupManager.exportData();
       const updatedTimestamp = new Date().toISOString();
+      const updatedTimeMs = new Date(updatedTimestamp).getTime();
+
       const payload = [{
         id: this.user.id,
         user_id: this.user.id,
@@ -427,7 +437,7 @@ export const SyncManager = {
       }
 
       this.status = 'synced';
-      this.lastSyncTime = updatedTimestamp;
+      this.lastSyncTime = updatedTimeMs;
       await Database.set(SYNC_META_KEY, { lastSyncTime: this.lastSyncTime });
 
       return {
@@ -503,11 +513,13 @@ export const SyncManager = {
       }
 
       const remoteRecord = rows[0];
+      const remoteTs = new Date(remoteRecord.updated_at).getTime();
       return {
         success: true,
         data: remoteRecord.data,
         schema: remoteRecord.schema,
         updatedAt: remoteRecord.updated_at,
+        updatedTimeMs: remoteTs,
         message: '成功拉取云端数据'
       };
     } catch (error) {
@@ -558,7 +570,7 @@ export const SyncManager = {
       const pushRes = await this.pushToCloud();
 
       this.status = 'synced';
-      this.lastSyncTime = pushRes.lastSyncTime || new Date().toISOString();
+      this.lastSyncTime = pushRes.lastSyncTime || Date.now();
       await Database.set(SYNC_META_KEY, { lastSyncTime: this.lastSyncTime });
 
       return {
@@ -605,7 +617,6 @@ export const SyncManager = {
           if (!item || !item.id) continue;
           const delTs = mergedDeleted[item.id] ? new Date(mergedDeleted[item.id]).getTime() : 0;
           const itemTs = new Date(item.updatedAt || item.createdAt || 0).getTime();
-          // 若被删除且删除时间比修改时间新，则丢弃
           if (delTs > 0 && delTs >= itemTs) continue;
           itemMap.set(item.id, item);
         }
@@ -661,7 +672,7 @@ export const SyncManager = {
       status: this.status,
       isEnabled: this.isEnabled,
       user: this.user,
-      lastSyncTime: this.lastSyncTime,
+      lastSyncTime: this.lastSyncTime ? new Date(this.lastSyncTime).toISOString() : null,
       hasConfig: !!(this.config.supabaseUrl && this.config.supabaseAnonKey)
     };
   }
