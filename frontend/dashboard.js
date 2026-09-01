@@ -3,6 +3,7 @@
 // 增强：智能避开用户当前正在打字输入的面板，杜绝输入过程中被刷新打断
 
 import { TaskPanel } from './task-panel.js';
+import { CalendarPanel } from './calendar-panel.js';
 import { JournalPanel } from './journal-panel.js';
 import { ReadingPanel } from './reading-panel.js';
 import { ResearchPanel } from './research-panel.js';
@@ -15,6 +16,11 @@ export const PANEL_CONFIG = {
     title: '📌 任务管理',
     init: (c) => TaskPanel && TaskPanel.init(c),
     render: () => TaskPanel && TaskPanel.render()
+  },
+  'calendar-panel': {
+    title: '📅 日历日程',
+    init: (c) => CalendarPanel && CalendarPanel.init(c),
+    render: () => CalendarPanel && CalendarPanel.render()
   },
   'journal-panel': {
     title: '📝 今日记录',
