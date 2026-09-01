@@ -1,9 +1,9 @@
 // Xiaohuhu Work Space — Service Worker
-// 版本：v1.3.4
+// 版本：v1.4.0
 // 负责离线资源缓存、秒开加速与断网降级
 // 严禁缓存任何 Supabase / REST API 请求，确保多端实时数据绝对新鲜
 
-const CACHE_NAME = 'xiaohuhu-v1.3.4';
+const CACHE_NAME = 'xiaohuhu-v1.4.0';
 
 // 核心静态资源离线缓存清单
 const ASSETS_TO_CACHE = [
@@ -13,6 +13,7 @@ const ASSETS_TO_CACHE = [
   './main.js',
   './dashboard.js',
   './task-panel.js',
+  './calendar-panel.js',
   './journal-panel.js',
   './reading-panel.js',
   './research-panel.js',
@@ -33,6 +34,7 @@ const ASSETS_TO_CACHE = [
   '../core/event.js',
   '../core/model.js',
   '../modules/task.js',
+  '../modules/schedule.js',
   '../modules/journal.js',
   '../modules/reading.js',
   '../modules/research.js',
