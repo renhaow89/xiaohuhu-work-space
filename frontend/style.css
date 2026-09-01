@@ -472,7 +472,20 @@ body {
   line-height: 1.5;
 }
 
-.input-text:focus, .input-textarea:focus, .select-input:focus {
+.task-textarea-auto {
+  border-radius: var(--radius-md);
+  resize: none;
+  min-height: 40px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 9px 14px;
+  box-sizing: border-box;
+}
+
+.input-text:focus, .input-textarea:focus, .select-input:focus, .task-textarea-auto:focus {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 3px var(--primary-glow);
   background: #ffffff;
@@ -606,6 +619,8 @@ body {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-main);
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .focus-item-meta {
@@ -621,6 +636,8 @@ body {
   padding: 1px 8px;
   border-radius: 4px;
   color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .focus-item-right {
@@ -941,6 +958,7 @@ body {
   font-weight: 600;
   color: var(--text-main);
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .task-sub-meta {
@@ -954,6 +972,8 @@ body {
 
 .meta-date, .meta-details {
   color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .priority-dot {
@@ -1063,8 +1083,7 @@ body {
   border-radius: var(--radius-lg);
   padding: 20px;
   margin-bottom: 20px;
-  box-shadow: var(--shadow-soft);
-}
+  box-shadow: var(--shadow-soft);\n}
 
 .cloud-sync-header {
   display: flex;

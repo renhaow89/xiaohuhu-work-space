@@ -194,12 +194,13 @@ export const TaskPanel = {
       <div class="task-form-card">
         <div class="task-form-row">
           <div class="form-col col-title">
-            <input
+            <textarea
               id="taskTitleInput"
-              class="input-text task-input-main"
-              placeholder="任务名称..."
+              class="input-text task-input-main task-textarea-auto"
+              rows="1"
+              placeholder="任务名称... (Enter提交, Shift+Enter换行)"
               autocomplete="off"
-            />
+            ></textarea>
           </div>
 
           <div class="form-col col-priority">
@@ -221,12 +222,13 @@ export const TaskPanel = {
           </div>
 
           <div class="form-col col-details" id="row1DetailsWrap" style="display: none;">
-            <input
+            <textarea
               id="taskDetailsInputAlt"
-              class="input-text"
-              placeholder="任务详情 / 备注（选填）"
+              class="input-text task-textarea-auto"
+              rows="1"
+              placeholder="任务详情 / 备注（选填，Shift+Enter换行）"
               autocomplete="off"
-            />
+            ></textarea>
           </div>
         </div>
 
@@ -262,12 +264,13 @@ export const TaskPanel = {
 
           <!-- 详情备注（非时间段模式下显示在第二行） -->
           <div class="form-col col-details" id="row2DetailsWrap">
-            <input
+            <textarea
               id="taskDetailsInput"
-              class="input-text"
-              placeholder="任务详情 / 备注（选填）"
+              class="input-text task-textarea-auto"
+              rows="1"
+              placeholder="任务详情 / 备注（选填，Shift+Enter换行）"
               autocomplete="off"
-            />
+            ></textarea>
           </div>
         </div>
 
@@ -384,6 +387,34 @@ export const TaskPanel = {
     const detailsInputAlt = this.container.querySelector('#taskDetailsInputAlt');
     const writeBtn = this.container.querySelector('#writeTaskBtn');
 
+    // 自适应高度与多行按键监听
+    const autoResize = (el) => {
+      if (!el) return;
+      el.style.height = 'auto';
+      el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+    };
+
+    const attachMultiLineKeyHandler = (el) => {
+      if (!el) return;
+      el.addEventListener('input', () => autoResize(el));
+      el.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+          if (e.shiftKey) {
+            // Shift + Enter 允许原生换行，并在下一事件循环更新自适应高度
+            setTimeout(() => autoResize(el), 0);
+            return;
+          }
+          // 单独 Enter 触发任务创建
+          e.preventDefault();
+          await handleCreate();
+        }
+      });
+    };
+
+    attachMultiLineKeyHandler(titleInput);
+    attachMultiLineKeyHandler(detailsInput);
+    attachMultiLineKeyHandler(detailsInputAlt);
+
     // 时间类型下拉联动
     if (timeTypeSelect) {
       timeTypeSelect.onchange = () => {
@@ -448,14 +479,6 @@ export const TaskPanel = {
     };
 
     if (writeBtn) writeBtn.onclick = handleCreate;
-    if (titleInput) {
-      titleInput.onkeydown = async (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          await handleCreate();
-        }
-      };
-    }
 
     // 顶部置顶区快速完成
     this.container.querySelectorAll('.quick-done-btn').forEach(btn => {
