@@ -22,11 +22,11 @@ window.clearAppCacheAndReload = async function () {
     const targetUrl = window.location.origin + basePath + '?_v=' + Date.now() + (window.location.hash || '');
     window.location.href = targetUrl;
   } catch (err) {
-    alert('清理缓存失败: ' + err.message);
+    alert('缓存清理失败: ' + err.message);
   }
 };
 
-// 应用启动时立即初始化同步引擎并开启后台秒级自动拉取
+// 启动时异步初始化多端实时同步引擎并在完成后刷新所有面板
 (async () => {
   try {
     await SyncManager.init();
@@ -40,7 +40,7 @@ window.clearAppCacheAndReload = async function () {
   }
 })();
 
-// 注册 PWA Service Worker 实现离线运行与秒开
+// 注册 PWA Service Worker 生命周期与缓存清理
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
@@ -53,7 +53,13 @@ if ('serviceWorker' in navigator) {
       });
   });
 
+  // 监听 Service Worker 控制器变更：新版本激活后自动平滑重载页面
+  // 防抖标志防止循环触发
+  let _swReloading = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    console.log('[PWA] New version activated.');
+    if (_swReloading) return;
+    _swReloading = true;
+    console.log('[PWA] New Service Worker activated, reloading for latest version...');
+    window.location.reload();
   });
 }

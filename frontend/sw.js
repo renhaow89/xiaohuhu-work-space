@@ -2,6 +2,7 @@
 // 版本：v1.4.0
 // 负责离线资源缓存、秒开加速与断网降级
 // 严禁缓存任何 Supabase / REST API 请求，确保多端实时数据绝对新鲜
+// 缓存策略：NetworkFirst — 联网时始终请求最新资源，断网时回退缓存
 
 const CACHE_NAME = 'xiaohuhu-v1.4.0';
 
@@ -68,7 +69,10 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 请求拦截阶段：只对同源静态前端文件实行缓存，API 请求一律直连网络
+// 请求拦截阶段：NetworkFirst 策略
+// 联网时始终优先请求网络获取最新资源，更新缓存后返回；
+// 仅在网络请求失败（断网）时才回退到本地缓存，确保离线可用。
+// Supabase / API 请求一律直连网络，不做任何拦截。
 self.addEventListener('fetch', (event) => {
   const request = event.request;
 
@@ -78,7 +82,7 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // 关键规则：只缓存本站同源的静态前端文件，绝不拦截/缓存 Supabase、API 或第三方请求
+  // 关键规则：只处理本站同源的静态前端文件，绝不拦截 Supabase、API 或第三方请求
   if (url.origin !== self.location.origin) {
     return;
   }
@@ -86,10 +90,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // NetworkFirst：先请求网络，网络失败时回退缓存
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      // 1. 如果缓存中存在，先返回缓存，并在后台异步请求网络更新缓存（Stale-While-Revalidate）
-      const fetchPromise = fetch(request).then((networkResponse) => {
+    fetch(request)
+      .then((networkResponse) => {
+        // 网络请求成功：更新缓存并返回最新响应
         if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -97,11 +102,17 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch((err) => {
-        console.log('[ServiceWorker] Offline mode, served from cache:', request.url);
-      });
-
-      return cachedResponse || fetchPromise;
-    })
+      })
+      .catch(() => {
+        // 网络失败（离线）：回退本地缓存
+        return caches.match(request).then((cachedResponse) => {
+          if (cachedResponse) {
+            console.log('[ServiceWorker] Offline fallback from cache:', request.url);
+            return cachedResponse;
+          }
+          // 缓存也没有：返回空响应防止页面崩溃
+          return new Response('', { status: 503, statusText: 'Service Unavailable (Offline)' });
+        });
+      })
   );
 });
