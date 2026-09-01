@@ -391,20 +391,24 @@ export const TaskPanel = {
     const autoResize = (el) => {
       if (!el) return;
       el.style.height = 'auto';
-      el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+      const newHeight = Math.min(Math.max(el.scrollHeight, 38), 200);
+      el.style.height = `${newHeight}px`;
     };
 
     const attachMultiLineKeyHandler = (el) => {
       if (!el) return;
       el.addEventListener('input', () => autoResize(el));
       el.addEventListener('keydown', async (e) => {
+        if (e.isComposing || e.keyCode === 229) {
+          return; // 中文输入法合成中，不拦截
+        }
         if (e.key === 'Enter') {
           if (e.shiftKey) {
-            // Shift + Enter 允许原生换行，并在下一事件循环更新自适应高度
-            setTimeout(() => autoResize(el), 0);
+            // Shift + Enter: 允许默认换行并自适应撑高
+            setTimeout(() => autoResize(el), 10);
             return;
           }
-          // 单独 Enter 触发任务创建
+          // 单独按 Enter: 提交创建任务
           e.preventDefault();
           await handleCreate();
         }

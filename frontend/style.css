@@ -475,13 +475,13 @@ body {
 .task-textarea-auto {
   border-radius: var(--radius-md);
   resize: none;
-  min-height: 40px;
-  max-height: 180px;
+  min-height: 38px;
+  max-height: 200px;
   overflow-y: auto;
   font-family: inherit;
   font-size: 13px;
   line-height: 1.45;
-  padding: 9px 14px;
+  padding: 8px 14px;
   box-sizing: border-box;
 }
 
@@ -775,6 +775,7 @@ body {
   display: flex;
   gap: 10px;
   width: 100%;
+  align-items: flex-start;
 }
 
 .col-title {
@@ -1083,7 +1084,8 @@ body {
   border-radius: var(--radius-lg);
   padding: 20px;
   margin-bottom: 20px;
-  box-shadow: var(--shadow-soft);\n}
+  box-shadow: var(--shadow-soft);
+}
 
 .cloud-sync-header {
   display: flex;
