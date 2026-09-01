@@ -9,8 +9,8 @@
 ## 1. 项目概况与部署信息
 
 - **项目名称**：Xiaohuhu Work Space（小呼呼个人数字工作空间）
-- **核心定位**：脱离第三方商业平台依赖、数据完全自主掌控的长期个人数字工作台（日常任务、科研记录、文献阅读、工作日志、多端同步）。
-- **当前版本**：`1.2.1`（Schema: `1`）
+- **核心定位**：脱离第三方商业平台依赖、数据完全自主掌控的长期个人数字工作台（日常任务、日历日程、科研记录、文献阅读、工作日志、多端同步）。
+- **当前版本**：`v1.4.0`（Schema: `1`）
 - **代码仓库**：`renhaow89/xiaohuhu-work-space`（主分支：`main`）
 - **线上部署地址**：
   * 🌍 国内直连（GitHub Pages）：`https://renhaow89.github.io/xiaohuhu-work-space/`
@@ -44,7 +44,7 @@ graph LR
    * 变更版本时只需修改 `core/version.js`，其他模块通过导入读取。
 4. **GitHub 独立 Commit 规范**：
    * 修改任何文件前，必须先通过 GitHub API 获取该文件的最新 `sha`。
-   * 每实现一个独立功能，执行一次原子 Git Commit（语义化前缀：`feat:`、`fix:`、`test:`、`chore:`、`style:`、`refactor:`）。
+   * 每实现一个独立功能，执行一次原子 Git Commit（语义化前缀：`feat:`、`fix:`、`test:`、`chore:`、`style:`、`refactor:`、`docs:`）。
 
 ---
 
@@ -53,42 +53,50 @@ graph LR
 ```
 xiaohuhu-work-space/
 ├── core/                         # 核心框架底座层 (Core Infrastructure)
-│   ├── version.js                # 统一版本与 Schema 真相源
+│   ├── version.js                # 统一版本与 Schema 真相源 (当前: v1.4.0, schema: 1)
 │   ├── config.js                 # 全局单例配置
 │   ├── storage.js                # 底层 localStorage 安全读写封装
 │   ├── data-adapter.js           # 数据序列化、反序列化与容错适配器
-│   ├── database.js               # 面向业务的异步数据库统一 API
-│   ├── backup.js                 # 全量 JSON 备份导出、导入与校验
-│   ├── backup-history.js         # 备份历史审计记录
+│   ├── database.js               # 面向业务的异步数据库统一 API (派发 EventBus 事件)
+│   ├── backup.js                 # 全量 JSON 备份导出、导入与校验恢复引擎
+│   ├── backup-history.js         # 备份历史审计记录管理
 │   ├── migration.js              # 数据 Schema 链式迁移流水线
-│   ├── sync-manager.js           # Supabase 邮箱认证与多端增量云同步核心
-│   ├── event.js                  # 全局 PubSub 事件总线
+│   ├── sync-manager.js           # Supabase 邮箱认证、心跳轮询、墓碑追踪与双向合并引擎
+│   ├── event.js                  # 全局 PubSub 事件总线 (EventBus)
 │   └── model.js                  # 基础数据实体模型
 │
 ├── modules/                      # 业务领域模块层 (Business Domains)
 │   ├── task.js                   # 任务管理（优先级/跨天时间段/定点提醒/置顶聚焦点）
-│   ├── journal.js                # 工作日志（分类标签/时间线）
+│   ├── schedule.js               # 日历日程（按日/月检索、全天/时段、分类标签）
+│   ├── journal.js                # 工作日志（分类标签/时间线逆序流）
 │   ├── reading.js                # 文献与书籍阅读（评分/状态/读书笔记）
-│   ├── research.js               # 科研实验记录（Markdown/标签管理）
+│   ├── research.js               # 科研实验记录（Markdown/标签管理/附件记录）
 │   ├── review.js                 # 周期复盘（周/月/年复盘骨架）
 │   └── finance.js                # 财务记账骨架
 │
 ├── frontend/                     # 用户界面与交互层 (Presentation Layer)
 │   ├── index.html                # 主工作台 SPA 骨架（110px 桌面 / 62px 移动端左侧侧边栏）
 │   ├── style.css                 # 温暖粉橙设计系统、圆角阴影、移动端左侧紧凑手账排版
-│   ├── main.js                   # 前端启动引导器，注册 PWA Service Worker
+│   ├── main.js                   # 前端启动引导器，注册 PWA Service Worker (含 controllerchange 自动重载)
 │   ├── dashboard.js              # 单面板导航切换控制器、顶部动态中文日期
 │   ├── task-panel.js             # 任务面板 UI（置顶卡片、双日期时间选择、Toast 提醒）
+│   ├── calendar-panel.js         # 日历日程面板 UI（月历网格、全景回顾）
 │   ├── journal-panel.js          # 日志面板 UI
 │   ├── reading-panel.js          # 阅读面板 UI
 │   ├── research-panel.js         # 科研面板 UI
 │   ├── file-panel.js             # 文件索引面板 UI
 │   ├── settings-panel.js         # 设置面板 UI（云同步配置、邮箱登录、内置保姆级教程）
-│   ├── sw.js                     # PWA Service Worker（离线预缓存与秒开策略）
+│   ├── sw.js                     # PWA Service Worker（NetworkFirst 策略与断网降级回退）
 │   ├── manifest.json             # PWA 独立安装配置
 │   ├── icons/                    # PWA 矢量图标 (icon-192.svg, icon-512.svg)
 │   └── test.html                 # 纯前端自动化集成测试套件（Suite 1 ~ 6）
 │
+├── docs/                         # 项目文档与规划
+│   ├── PROJECT_STATUS.md         # 项目当前状态与 AI 交接文档
+│   ├── antigravity-dev-plan-v1.md # 初始研发规划
+│   └── project-plan.md           # 规划文档
+│
+├── vercel.json                   # Vercel 部署与 no-cache 头配置
 └── AI_DEVELOPMENT_GUIDE.md       # 本交接手册
 ```
 
@@ -153,8 +161,12 @@ WITH CHECK (auth.uid() = user_id);
 
 ---
 
-### 4.3 PWA 离线运行与独立 App (`frontend/sw.js` & `manifest.json`)
-* **缓存策略**：`Stale-While-Revalidate`（优先返回本地缓存实现 0.05 秒极速秒开，后台异步请求新版本更新缓存）。
+### 4.3 PWA 离线运行与版本平滑更新 (`frontend/sw.js` & `manifest.json` & `vercel.json`)
+* **缓存策略**：`NetworkFirst`（联网时每次优先拉取网络最新代码并更新缓存；断网或网络失败时平滑回退本地离线缓存，确保离线可用）。
+* **版本自动平滑更新**：
+  * `frontend/sw.js` 采用 `skipWaiting()` 和 `clients.claim()`。
+  * `frontend/main.js` 监听 `controllerchange` 事件并在新 SW 激活后通过防抖保护平滑触发 `window.location.reload()`。
+  * `vercel.json` 针对 `/frontend/sw.js`、`/frontend/index.html`、`/frontend/manifest.json` 配置 `Cache-Control: no-cache, no-store, must-revalidate` 响应头，彻底消除 CDN 与浏览器强缓存影响。
 * **全平台独立 App**：
   * **PC 端**（Chrome / Edge）：地址栏一键「安装应用」，生成桌面图标，纯净无边框独立窗口运行。
   * **手机端**（iOS / Android）：Safari「添加到主屏幕」，全屏沉浸手账体验。
@@ -222,5 +234,5 @@ WITH CHECK (auth.uid() = user_id);
 - **Suite 2**：Core / 数据抽象层（Storage $\to$ DataAdapter $\to$ Database）
 - **Suite 3**：Core / 备份与迁移（Backup & Migration）
 - **Suite 4**：Core / 同步管理器（SyncManager 状态、配置、时间戳合并）
-- **Suite 5**：Modules / 业务模块 CRUD 测试（Task 高级时间段、Journal、Reading、Research）
+- **Suite 5**：Modules / 业务模块 CRUD 测试（Task 高级时间段、Schedule 日历日程、Journal、Reading、Research）
 - **Suite 6**：PWA / 离线支持与 Web App Manifest 校验
