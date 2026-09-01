@@ -18,6 +18,7 @@ const SYNCABLE_COLLECTIONS = new Set([
   'journals',
   'workspace_readings',
   'workspace_research',
+  'workspace_schedules',
   DELETED_KEY
 ]);
 
