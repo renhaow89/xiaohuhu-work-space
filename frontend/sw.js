@@ -1,10 +1,10 @@
 // Xiaohuhu Work Space — Service Worker
-// 版本：v1.4.1
+// 版本：v1.4.2
 // 负责离线资源缓存、秒开加速与断网降级
 // 严禁缓存任何 Supabase / REST API 请求，确保多端实时数据绝对新鲜
 // 缓存策略：NetworkFirst — 联网时始终请求最新资源，断网时回退缓存
 
-const CACHE_NAME = 'xiaohuhu-v1.4.1';
+const CACHE_NAME = 'xiaohuhu-v1.4.2';
 
 // 核心静态资源离线缓存清单
 const ASSETS_TO_CACHE = [

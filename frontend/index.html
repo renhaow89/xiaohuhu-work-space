@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="icons/icon-192.svg">
   <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
 
-  <link rel="stylesheet" href="style.css?v=1.4.0">
+  <link rel="stylesheet" href="style.css?v=1.4.2">
 </head>
 <body>
 <div id="app">
@@ -31,10 +31,6 @@
         <span class="nav-icon">📌</span>
         <span class="nav-label">任务</span>
       </button>
-      <button class="nav-item" data-panel="calendar-panel" title="日历日程与全景回顾">
-        <span class="nav-icon">📅</span>
-        <span class="nav-label">日历</span>
-      </button>
       <button class="nav-item" data-panel="journal-panel" title="工作日志">
         <span class="nav-icon">📝</span>
         <span class="nav-label">日志</span>
@@ -46,6 +42,10 @@
       <button class="nav-item" data-panel="research-panel" title="科研记录">
         <span class="nav-icon">🧪</span>
         <span class="nav-label">科研</span>
+      </button>
+      <button class="nav-item" data-panel="calendar-panel" title="日历日程与全景回顾">
+        <span class="nav-icon">📅</span>
+        <span class="nav-label">日历</span>
       </button>
       <button class="nav-item" data-panel="file-panel" title="文件中心">
         <span class="nav-icon">📁</span>
@@ -85,10 +85,10 @@
     <!-- 单面板容器区（仅激活面板显示） -->
     <div class="panels-container">
       <section class="panel active" id="task-panel"></section>
-      <section class="panel" id="calendar-panel"></section>
       <section class="panel" id="journal-panel"></section>
       <section class="panel" id="reading-panel"></section>
       <section class="panel" id="research-panel"></section>
+      <section class="panel" id="calendar-panel"></section>
       <section class="panel" id="file-panel"></section>
       <section class="panel" id="settings-panel"></section>
     </div>
@@ -98,6 +98,6 @@
 <!-- 全局导入文件选择器 -->
 <input id="global-backup-file-input" type="file" accept="application/json" style="display:none" />
 
-<script type="module" src="main.js?v=1.4.0"></script>
+<script type="module" src="main.js?v=1.4.2"></script>
 </body>
 </html>
