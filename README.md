@@ -16,10 +16,10 @@
 - **统一版本与迁移体系**：中央管理应用版本与数据 Schema，内置链式数据迁移机制（`core/migration.js`）。
 - **全功能日常工作流**：
   - 📌 **任务管理（Task）**：顶部「☀️ 今天要处理」置顶聚焦、跨日月时分时间段、定点提醒、多行换行（Shift+Enter）、红黄绿优先级标签。
-  - 📅 **日历日程（Schedule）**：月历网格全景概览、支持按日/月检索、全天/时段标记与分类标签管理。
   - 📝 **工作日志（Journal）**：支持分类标签（💻开发 / 🧪实验 / 📖思考 / 📌总结 / 💡灵感）、快捷键保存与卡片流。
   - 📚 **阅读中心（Reading）**：支持文献/书籍记录、阅读状态管理（想读/在读/已读）、读书笔记与评分。
   - 🧪 **科研记录（Research）**：支持实验方案记录、观察总结、多标签管理与详情查看。
+  - 📅 **日历日程（Schedule）**：月历网格全景概览、支持按日/月检索、全天/时段标记与分类标签管理。
   - 📁 **文件中心（File）**：文件索引与本地附件关联管理。
   - ⚙️ **设置中心（Settings）**：云同步配置、保姆级图文教程、数据一键导出/导入/清空，备份历史审计。
   - 🧪 **自动化测试套件（Test Suite）**：内置纯浏览器运行的端到端与单元测试集（访问 `frontend/test.html`）。
@@ -47,7 +47,7 @@
 Frontend UI (HTML / CSS / Panels)
        │
        ▼
-Modules Layer (Task / Schedule / Journal / Reading / Research)
+Modules Layer (Task / Journal / Reading / Research / Schedule)
        │
        ▼
 Database Layer (core/database.js)
@@ -74,6 +74,6 @@ Storage Layer (core/storage.js)
 
 ## 📌 当前版本
 
-- **当前版本**：`v1.4.1`
+- **当前版本**：`v1.4.2`
 - **Schema 版本**：`1`
 - **维护原则**：纯原生、模块化、向后兼容、数据安全第一。

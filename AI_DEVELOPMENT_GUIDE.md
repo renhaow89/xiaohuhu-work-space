@@ -9,8 +9,8 @@
 ## 1. 项目概况与部署信息
 
 - **项目名称**：Xiaohuhu Work Space（小呼呼个人数字工作空间）
-- **核心定位**：脱离第三方商业平台依赖、数据完全自主掌控的长期个人数字工作台（日常任务、日历日程、科研记录、文献阅读、工作日志、多端同步）。
-- **当前版本**：`v1.4.1`（Schema: `1`）
+- **核心定位**：脱离第三方商业平台依赖、数据完全自主掌控的长期个人数字工作台（日常任务、工作日志、文献阅读、科研记录、日历日程、多端同步）。
+- **当前版本**：`v1.4.2`（Schema: `1`）
 - **代码仓库**：`renhaow89/xiaohuhu-work-space`（主分支：`main`）
 - **线上部署地址**：
   * 🌍 国内直连（GitHub Pages）：`https://renhaow89.github.io/xiaohuhu-work-space/`
@@ -53,7 +53,7 @@ graph LR
 ```
 xiaohuhu-work-space/
 ├── core/                         # 核心框架底座层 (Core Infrastructure)
-│   ├── version.js                # 统一版本与 Schema 真相源 (当前: v1.4.1, schema: 1)
+│   ├── version.js                # 统一版本与 Schema 真相源 (当前: v1.4.2, schema: 1)
 │   ├── config.js                 # 全局单例配置
 │   ├── storage.js                # 底层 localStorage 安全读写封装
 │   ├── data-adapter.js           # 数据序列化、反序列化与容错适配器
@@ -67,10 +67,10 @@ xiaohuhu-work-space/
 │
 ├── modules/                      # 业务领域模块层 (Business Domains)
 │   ├── task.js                   # 任务管理（优先级/跨天时间段/定点提醒/置顶聚焦点/多行换行）
-│   ├── schedule.js               # 日历日程（按日/月检索、全天/时段、分类标签）
 │   ├── journal.js                # 工作日志（分类标签/时间线逆序流）
 │   ├── reading.js                # 文献与书籍阅读（评分/状态/读书笔记）
 │   ├── research.js               # 科研实验记录（Markdown/标签管理/附件记录）
+│   ├── schedule.js               # 日历日程（按日/月检索、全天/时段、分类标签）
 │   ├── review.js                 # 周期复盘（周/月/年复盘骨架）
 │   └── finance.js                # 财务记账骨架
 │
@@ -80,10 +80,10 @@ xiaohuhu-work-space/
 │   ├── main.js                   # 前端启动引导器，注册 PWA Service Worker (含 controllerchange 自动重载)
 │   ├── dashboard.js              # 单面板导航切换控制器、顶部动态中文日期
 │   ├── task-panel.js             # 任务面板 UI（置顶卡片、双日期时间选择、Toast 提醒、多行换行）
-│   ├── calendar-panel.js         # 日历日程面板 UI（月历网格、全景回顾）
 │   ├── journal-panel.js          # 日志面板 UI
 │   ├── reading-panel.js          # 阅读面板 UI
 │   ├── research-panel.js         # 科研面板 UI
+│   ├── calendar-panel.js         # 日历日程面板 UI（月历网格、全景回顾）
 │   ├── file-panel.js             # 文件索引面板 UI
 │   ├── settings-panel.js         # 设置面板 UI（云同步配置、邮箱登录、内置保姆级教程）
 │   ├── sw.js                     # PWA Service Worker（NetworkFirst 策略与断网降级回退）
@@ -144,7 +144,8 @@ xiaohuhu-work-space/
 
 ```sql
 -- Supabase 云端专属建表与 RLS 语句
-CREATE TABLE IF NOT EXISTS user_workspace_data (\n  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS user_workspace_data (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   data JSONB NOT NULL DEFAULT '{}'::jsonb,
   schema INT NOT NULL DEFAULT 1,
