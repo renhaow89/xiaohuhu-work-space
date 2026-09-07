@@ -1,7 +1,7 @@
 # Xiaohuhu Work Space — 项目当前状态与 AI 交接文档
 
 > **文档用途**：将此文档完整提供给新 AI Agent 或开发者，使其快速了解项目全貌与当前状态，无需重复介绍背景。  
-> **最后更新**：2026-09-02
+> **最后更新**：2026-09-07
 
 ---
 
@@ -14,7 +14,7 @@
 | **GitHub 仓库** | https://github.com/renhaow89/xiaohuhu-work-space （分支：`main`） |
 | **线上访问（Vercel）** | https://xiaohuhu-work-space.vercel.app/ |
 | **线上访问（GitHub Pages）** | https://renhaow89.github.io/xiaohuhu-work-space/ |
-| **当前版本** | v1.4.0（Schema: 1） |
+| **当前版本** | v1.4.2（Schema: 1） |
 | **技术栈** | 纯原生 ES Modules（HTML5 + CSS3 + Vanilla JS），零构建工具，LocalStorage + PWA Service Worker + Supabase 云端双向同步 |
 
 ---
@@ -27,12 +27,13 @@ xiaohuhu-work-space/
 ├── vercel.json                  # Vercel 部署配置（含 no-cache 响应头）
 ├── AI_DEVELOPMENT_GUIDE.md      # AI 开发规约手册（必读）
 ├── README.md                    # 项目说明
+├── CHANGELOG.md                 # 项目更新日志（遵循 Keep a Changelog 规范）
 ├── docs/                        # 项目文档与规划
 │   ├── PROJECT_STATUS.md        # 本项目当前状态与 AI 交接文档
 │   ├── antigravity-dev-plan-v1.md
 │   └── project-plan.md
 ├── core/                        # 核心基础设施层
-│   ├── version.js               # 全局版本号管理（当前：v1.4.0，schema: 1）
+│   ├── version.js               # 全局版本号管理（当前：v1.4.2，schema: 1）
 │   ├── database.js              # 数据抽象层（统一派发 EventBus 事件）
 │   ├── storage.js               # 底层 LocalStorage 驱动
 │   ├── data-adapter.js          # 数据适配层
@@ -43,27 +44,27 @@ xiaohuhu-work-space/
 │   ├── migration.js             # 数据迁移
 │   └── model.js                 # 基础模型
 ├── modules/                     # 业务数据模型层
-│   ├── task.js                  # 任务模块（定点提醒、跨日时间段）
-│   ├── schedule.js              # 日程模块（按日/月检索、全天/时段、分类标签）
+│   ├── task.js                  # 任务模块（定点提醒、跨日时间段、多行换行支持）
 │   ├── journal.js               # 工作日志模块（分类标签、逆序流展示）
 │   ├── reading.js               # 文献与书籍阅读记录模块
 │   ├── research.js              # 科研实验进展与附件记录模块
+│   ├── schedule.js              # 日程模块（按日/月检索、全天/时段、分类标签）
 │   ├── review.js                # 复盘模块骨架
 │   └── finance.js               # 财务记账骨架
 └── frontend/                    # 前端视图与交互层（SPA）
-    ├── index.html               # 单页面应用主入口
+    ├── index.html               # 单页面应用主入口（左侧侧边栏导航）
     ├── style.css                # 手账粉橙风格全局样式（含移动端响应式断点）
-    ├── main.js                  # 启动引导器、PWA Service Worker 注册
+    ├── main.js                  # 启动引导器、PWA Service Worker 注册（含 controllerchange 自动重载）
     ├── dashboard.js             # 单面板路由控制器
-    ├── task-panel.js            # 任务管理面板
-    ├── calendar-panel.js        # 日历日程面板（月历网格、全景回顾）
+    ├── task-panel.js            # 任务管理面板（多行自适应输入、Shift+Enter换行）
     ├── journal-panel.js         # 工作日志面板
     ├── reading-panel.js         # 文献阅读面板
     ├── research-panel.js        # 科研记录面板
+    ├── calendar-panel.js        # 日历日程面板（月历网格、全景回顾）
     ├── file-panel.js            # 文件中心面板
-    ├── settings-panel.js        # 设置中心（Supabase 配置、数据维护）
+    ├── settings-panel.js        # 设置中心（Supabase 配置、数据维护、一键缓存清理）
     ├── manifest.json            # PWA 安装清单
-    ├── sw.js                    # PWA Service Worker（离线缓存控制器）
+    ├── sw.js                    # PWA Service Worker（NetworkFirst 缓存控制器，CACHE_NAME: xiaohuhu-v1.4.2）
     ├── icons/                   # PWA 图标
     └── test.html                # 自动化测试套件
 ```
@@ -94,43 +95,60 @@ WITH CHECK (auth.uid() = user_id);
 
 ## 四、已完成的工作记录
 
-### ✅ PWA 强缓存问题修复（2026-09-02，Commit: `0d2f851`）
+### ✅ 侧边栏导航顺序调整（2026-09-02，Commit: `6dc1711`，版本：v1.4.2）
+- **变更内容**：
+  - 调整左侧侧边栏导航排列，将「📅 日历」项移动至「🧪 科研」与「📁 文件」之间。
+  - 侧边栏当前最终顺序：`任务` $\to$ `日志` $\to$ `阅读` $\to$ `科研` $\to$ `日历` $\to$ `文件` $\to$ `设置`。
+  - 同步递增 `core/version.js` 与 `frontend/sw.js` 缓存键为 `xiaohuhu-v1.4.2`，保证客户端即时生效。
 
-**问题描述**：用户刷新页面后仍停留在旧版本 UI，点击「清理缓存并更新」按钮也常常无效。
+### ✅ 任务输入多行换行与 Shift+Enter 支持（2026-09-02，Commit: `54e4445`，版本：v1.4.1）
+- **变更内容**：
+  - `frontend/task-panel.js`：将任务名称与详情备注的单行 `<input>` 升级为自适应伸缩 `<textarea rows="1">`。
+  - 交互支持：单独按 `Enter` 快速提交任务；按 `Shift + Enter` 插入换行符并平滑自适应拉伸文本框。
+  - 中文输入法（IME）防护：增加 `e.isComposing || e.keyCode === 229` 检测，避免打字选词回车被误拦截。
+  - `frontend/style.css`：为 `.task-title`、`.focus-item-title`、`.focus-item-detail`、`.meta-details` 补充 `white-space: pre-wrap;` 与 `word-break: break-word;`，列表与卡片完美对齐多行展示；`.task-form-row` 设定 `align-items: flex-start;`。
 
-**根本原因（三层缓存叠加）**：
-1. GitHub Pages CDN 对 HTML/JS 默认 `max-age=600`（10 分钟强缓存）
-2. `sw.js` 采用 Stale-While-Revalidate 策略，刷新时永远先返回旧缓存
-3. 新 SW 安装后未触发页面重载，旧 SW 继续控制当前页
-
-**改动内容（3 个文件）**：
-
-#### `frontend/sw.js`
-- **策略变更**：`Stale-While-Revalidate` → **`NetworkFirst`**
-- 联网时每次刷新都从服务器拉取最新代码
-- 网络失败时自动回退本地缓存（离线可用性不受影响）
-- `skipWaiting()` 和 `clients.claim()` 保留（原有）
-
-#### `frontend/main.js`
-- **新增**：`controllerchange` 事件触发 `window.location.reload()`
-- 加入 `_swReloading` 防抖标志，防止循环重载
-- 效果：新版本 SW 激活后，页面自动平滑刷新到最新版本
-
-#### `vercel.json`
-- **新增** `headers` 配置，对以下文件禁用 HTTP 强缓存：
-  - `/frontend/index.html`
-  - `/frontend/sw.js`
-  - `/frontend/manifest.json`
-- 响应头：`Cache-Control: no-cache, no-store, must-revalidate`
-
-**修复效果**：
-- 普通刷新即可获取最新版本，无需手动清理缓存
-- 发布新版本后，用户下次打开即自动更新
-- 「清理缓存并更新」按钮保留，作为彻底清理的保底手段
+### ✅ PWA 强缓存问题修复（2026-09-02，Commit: `0d2f851`，版本：v1.4.0）
+- **问题描述**：用户刷新页面后仍停留在旧版本 UI，点击「清理缓存并更新」按钮也常常无效。
+- **根本原因（三层缓存叠加）**：
+  1. GitHub Pages CDN 对 HTML/JS 默认 `max-age=600`（10 分钟强缓存）
+  2. `sw.js` 采用 Stale-While-Revalidate 策略，刷新时永远先返回旧缓存
+  3. 新 SW 安装后未触发页面重载，旧 SW 继续控制当前页
+- **改动内容**：
+  - `frontend/sw.js`：改用 **`NetworkFirst`** 策略，联网时始终向服务器拉取最新代码，网络离线时回退本地缓存。
+  - `frontend/main.js`：添加 `controllerchange` 监听，新 SW 激活后自动平滑重载页面。
+  - `vercel.json`：对 `/frontend/index.html`、`/frontend/sw.js`、`/frontend/manifest.json` 注入 `Cache-Control: no-cache, no-store, must-revalidate` 响应头。
 
 ---
 
 ## 五、当前代码关键逻辑说明
+
+### `frontend/task-panel.js` 多行按键与自适应高度逻辑
+
+```javascript
+const autoResize = (el) => {
+  if (!el) return;
+  el.style.height = 'auto';
+  const newHeight = Math.min(Math.max(el.scrollHeight, 38), 200);
+  el.style.height = `${newHeight}px`;
+};
+
+const attachMultiLineKeyHandler = (el) => {
+  if (!el) return;
+  el.addEventListener('input', () => autoResize(el));
+  el.addEventListener('keydown', async (e) => {
+    if (e.isComposing || e.keyCode === 229) return; // 中文输入法合成中放行
+    if (e.key === 'Enter') {
+      if (e.shiftKey) {
+        setTimeout(() => autoResize(el), 10); // Shift+Enter 允许换行并撑高
+        return;
+      }
+      e.preventDefault();
+      await handleCreate(); // 单独 Enter 提交任务
+    }
+  });
+};
+```
 
 ### `frontend/sw.js` 当前 fetch 策略（NetworkFirst）
 
@@ -163,19 +181,6 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
 });
 ```
 
-### `vercel.json` no-cache 头配置
-
-```json
-{
-  "headers": [
-    {
-      "source": "/frontend/sw.js",
-      "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
-    }
-  ]
-}
-```
-
 ---
 
 ## 六、可继续投入的后续工作（待办）
@@ -186,7 +191,7 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
 
 - [ ] **更新提示 Toast**：检测到新 SW 激活时，在重载前先弹出一个 2 秒提示（"✨ 新版本已就绪，正在刷新..."），而非静默跳转
 - [ ] **更新按钮状态优化**：点击「清理缓存并更新」后加 loading 状态，防止用户多次点击
-- [ ] **版本号显示**：在设置页面或底部角落显示当前版本号（读取 `core/version.js`），帮助用户确认是否已更新
+- [ ] **版本号显示增强**：在侧边栏底部小字显示当前版本号（读取 `core/version.js`）
 
 ### 📅 功能扩展类
 
@@ -198,7 +203,6 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
 
 - [ ] **`main.js` 重复 import**：第 1 行 `import './dashboard.js'` 和第 3 行 `import Dashboard from './dashboard.js'` 重复导入同一文件，应合并为一行
 - [ ] **离线页面**：当 SW 缓存也没有对应资源时，当前返回空 503 响应，应改为返回一个友好的离线提示 HTML 页面
-- [ ] **CACHE_NAME 自动递增**：每次发版时需手动修改 `sw.js` 中的 `CACHE_NAME`，可考虑用构建时注入版本号（但当前零构建工具约束需兼顾）
 
 ---
 
@@ -215,6 +219,6 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
 
 1. **零构建工具**：严禁引入 npm/webpack/vite，所有代码均为原生 ES Modules
 2. **不缓存 API**：`sw.js` 的规则明确排除所有 Supabase 和 `supabase.co` 域名请求，修改时务必保留
-3. **版本同步**：修改功能后需同步更新 `core/version.js` 中的版本号
+3. **版本同步**：修改功能后需同步更新 `core/version.js` 与 `frontend/sw.js` 中的版本号
 4. **数据兼容**：修改 LocalStorage 数据结构时需同步更新 Schema 版本号并编写迁移脚本
 5. **AI 开发规约**：提交前请参考仓库中的 `AI_DEVELOPMENT_GUIDE.md`
